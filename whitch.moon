@@ -27,57 +27,55 @@ class Mtrx3x3
 	new:(m={ 1,0,0, 0,1,0, 0,0,1, })=>
 		@m=m
 		@rl=3
+	_index:(r,c)=>r*3+c+1
 	get:(r,c)=>
 		-- adjust for 1 indexed arrays
 		assert r*c <= #@m and r*c >= 0
-		i=(r*@rl+c)+1
-		@m[i]
+		@m[@_index(r,c)]
 	set:(r,c,v)=>
 		assert r*c <= #@m and r*c >= 0
-		i=(r*@rl+c)+1
-		@m[i]=v
-	__add:(o)=>
-		{ a,b,c, d,e,f, g,h,i, }=@m
-		{ j,k,l, m,n,o, p,q,r, }=o.m
-		Mtrx3x3 {
-			a+j,b+k,c+l,
-			d+m,e+n,f+o,
-			g+p,h+q,i+r,
-		}
-	__sub:(o)=>
-		{ a,b,c, d,e,f, g,h,i, }=@m
-		{ j,k,l, m,n,o, p,q,r, }=o.m
-		Mtrx3x3 {
-			a-j,b-k,c-l,
-			d-m,e-n,f-o,
-			g-p,h-q,i-r,
-		}
-	-- computes dot product
+		@m[@_index(r,c)]=v
+	_apply:(o,f)=>
+		{ a,b,c, d,e,f, g,h,i }=@m
+		if "number"== type o
+			Mtrx3x3 {
+				f(a,o),f(b,o),f(c,o),
+				f(d,o),f(e,o),f(f,o),
+				f(g,o),f(h,o),f(i,o),
+			}
+		else
+			assert istype o,Mtrx3x3
+			{ j,k,l, m,n,o, p,q,r }=o.m
+			Mtrx3x3 {
+				f(a,j),f(b,k),f(c,l),
+				f(d,m),f(e,n),f(f,o),
+				f(g,p),f(h,q),f(i,r),
+			}
+	__add:(o)=>@_apply o,(a,b)->a+b
+	__sub:(o)=>@_apply o,(a,b)->a-b
 	__mul:(o)=>
-		assert istype o,Mtrx3x3
-		{ a,b,c, d,e,f, g,h,i, }=@m
-		{ j,k,l, m,n,o, p,q,r, }=o.m
-		Mtrx3x3 {
-			a*j+b*m+c*p,a*k+b*n+c*q,a*l+b*o+c*r,
-			d*j+e*m+f*p,d*k+e*n+f*q,d*l+e*o+f*r,
-			g*j+h*m+i*p,g*k+h*n+i*q,g*l+h*o+i*r,
-		}
-	__unm:=>
-		{ a,b,c, d,e,f, g,h,i, }=@m
-		Mtrx3x3 {
-			-a,-b,-c,
-			-d,-e,-f,
-			-g,-h,-i,
-		}
+		if "number"== type o
+			@_apply o,(a,b)->a*b
+		else if istype o,Mtrx3x3
+			-- computes dot product
+			{ a,b,c, d,e,f, g,h,i }=@m
+			{ j,k,l, m,n,o, p,q,r }=o.m
+			Mtrx3x3 {
+				a*j+b*m+c*p,a*k+b*n+c*q,a*l+b*o+c*r,
+				d*j+e*m+f*p,d*k+e*n+f*q,d*l+e*o+f*r,
+				g*j+h*m+i*p,g*k+h*n+i*q,g*l+h*o+i*r,
+			}
+	__div:(o)=>@_apply o,(a,b)->a/b
+	__idiv:(o)=>@_apply o,(a,b)->a//b
+	__unm:=>@__mul -1
 	__tostring:=>
 		{ a,b,c, d,e,f, g,h,i, }=@m
 		"[#{a},#{b},#{c}, #{d},#{e},#{f}, #{g},#{h},#{i}]"
-	__angcossin:(ang)=>
-		ang=math.rad ang
-		math.cos(ang),math.sin ang
 
 class Transform
 	new:=>
+		@s={}
+		@r={}
 		@t={}
 	translate:(x=0,y=0)=>
 		table.insert @t,Mtrx3x3 {
@@ -86,7 +84,7 @@ class Transform
 			0,0,1,
 		}
 	scale:(w=1,h=1)=>
-		table.insert @t,Mtrx3x3 {
+		table.insert @s,Mtrx3x3 {
 			w,0,0,
 			0,h,0,
 			0,0,1,
@@ -111,9 +109,13 @@ class Transform
 		table.insert @t,@translate(-x,-y) *
 			@rotate(ang) *
 			@translate(x,y)
-	apply:(f)=>
+	apply:(m)=>
+		for s in *@s
+			m*=s
+		for r in *@r
+			m*=r
 		for t in *@t
-			f t
+			m*=t
 
 class Vec2 extends Mtrx3x3
 	new:(x=0,y=0)=>
@@ -210,7 +212,7 @@ class Entity
 		@vel=o.vel or Vec2!
 		@vel_max=o.vel_max or Vec2 1.5,1.5
 		@acc=o.acc or Vec2 0.3,0.3
-		@z=o.z or 0
+		@z_index=o.z_index or 0
 		@w=o.w or 8
 		@h=o.h or 8
 		@behaviors=o.behaviors or {}
@@ -397,7 +399,7 @@ class Scene extends Entity
 		assert istype e,Entity
 		table.insert @entities,e
 	update:(game)=>
-		table.sort @entities,comp("z")
+		table.sort @entities,comp("z_index")
 		for entity in *@entities
 			entity\update game,@
 	draw:(game)=>
@@ -563,7 +565,7 @@ export BOOT=->
 					player
 					Map
 						colorkey:0
-						z:-1
+						z_index:-1
 				}
 		}
 
