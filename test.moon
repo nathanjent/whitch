@@ -6,8 +6,10 @@
 -- version: 0.1
 -- script:  moon
 
--- compare field of 2 tables
-comp=(k)->(a,b)->a[k]<b[k]
+DEBUG=false
+
+-- comp_byare field of 2 tables
+comp_by=(k)->(a,b)->a[k]<b[k]
 
 -- true if object inherits from type
 istype=(o,t)->
@@ -18,7 +20,7 @@ istype=(o,t)->
 		c=c.__parent
 	false
 
-class Mtrx3x3
+class Matrix
 	new:(m={ 1,0,0, 0,1,0, 0,0,1 })=>
 		@m=m
 	_index:(r,c)=>r*3+c+1
@@ -29,34 +31,33 @@ class Mtrx3x3
 	set:(r,c,v)=>
 		assert r*c <= #@m and r*c >= 0
 		@m[@_index(r,c)]=v
-	_apply:(o,f)=>
+	_apply:(o,fn)=>
 		{ a,b,c, d,e,f, g,h,i }=@m
 		if "number"== type o
-			Mtrx3x3 {
-				f(a,o),f(b,o),f(c,o),
-				f(d,o),f(e,o),f(f,o),
-				f(g,o),f(h,o),f(i,o),
+			Matrix {
+				fn(a,o),fn(b,o),fn(c,o),
+				fn(d,o),fn(e,o),fn(f,o),
+				fn(g,o),fn(h,o),fn(i,o),
 			}
 		else
-			assert istype o,Mtrx3x3
+			assert istype o,Matrix
 			{ j,k,l, m,n,o, p,q,r }=o.m
-			Mtrx3x3 {
-				f(a,j),f(b,k),f(c,l),
-				f(d,m),f(e,n),f(f,o),
-				f(g,p),f(h,q),f(i,r),
+			Matrix {
+				fn(a,j),fn(b,k),fn(c,l),
+				fn(d,m),fn(e,n),fn(f,o),
+				fn(g,p),fn(h,q),fn(i,r),
 			}
 	__add:(o)=>@_apply o,(a,b)->a+b
 	__sub:(o)=>@_apply o,(a,b)->a-b
 	__mul:(o)=>@_apply o,(a,b)->a*b
-	__mul:(o)=>
 	__div:(o)=>@_apply o,(a,b)->a/b
 	__idiv:(o)=>@_apply o,(a,b)->a//b
-	-- computes dot product
+	-- comp_byutes dot product
 	__concat:(o)=>
-		assert istype o,Mtrx3x3
+		assert istype o,Matrix
 		{ a,b,c, d,e,f, g,h,i }=@m
 		{ j,k,l, m,n,o, p,q,r }=o.m
-		Mtrx3x3 {
+		Matrix {
 			a*j+b*m+c*p,a*k+b*n+c*q,a*l+b*o+c*r,
 			d*j+e*m+f*p,d*k+e*n+f*q,d*l+e*o+f*r,
 			g*j+h*m+i*p,g*k+h*n+i*q,g*l+h*o+i*r,
@@ -65,29 +66,28 @@ class Mtrx3x3
 		{ a,b,c, d,e,f, g,h,i }=@m
 		"[#{a},#{b},#{c},#{d},#{e},#{f},#{g},#{h},#{i}]"
 
-class Transform
+class TransformSet
 	new:=>
-		@s=Mtrx3x3!
-		@r=Mtrx3x3!
-		@t=Mtrx3x3!
-	__len:=>#@s+#@r+#@t
+		@s=Matrix!
+		@r=Matrix!
+		@t=Matrix!
 	translate:(x=0,y=0)=>
-		@t*=Mtrx3x3 {
+		@t..=Matrix {
 			1,0,x,
 			0,1,y,
 			0,0,1,
 		}
 	scale:(w=1,h=1)=>
-		@s*=Mtrx3x3 {
+		@s..=Matrix {
 			w,0,0,
 			0,h,0,
 			0,0,1,
 		}
 	reflect:=>@scale -1,-1
-	reflect_x:=>@scale 1,-1
-	reflect_y:=>@scale -1,1
+	reflect_x:=>@scale -1,1
+	reflect_y:=>@scale 1,-1
 	shear:(x=0,y=0)=>
-		@s*=Mtrx3x3 {
+		@s..=Matrix {
 			1,x,0,
 			y,1,0,
 			0,0,1,
@@ -95,29 +95,40 @@ class Transform
 	rotate:(ang=0)=>
 		ang=math.rad ang
 		c,s=math.cos(ang),math.sin ang
-		@r*=Mtrx3x3 {
+		@r..=Matrix {
 			c,-s,0,
 			s, c,0,
 			0, 0,1,
 		}
 	rotate_around_axis:(ang=0,x=0,y=0)=>
-		@t*=@translate(-x,-y) *
-			@rotate(ang) *
+		@t..=@translate(-x,-y) ..
+			@rotate(ang) ..
 			@translate(x,y)
-	apply:(m)=>@s*@r*@t*m
+	apply:(m)=>@s..@r..@t..m
 
-class Vec2
+m=Matrix {
+	5,0,0
+	0,0,0
+	1,0,0
+}
+t=TransformSet!
+t\reflect_x!
+m1=t\apply m
+x=m1\get(0,0)
+assert x == -5,"expect x to be -5 but was #{x}"
+
+class Vec
 	new:(x=0,y=0)=>
 		@x=x
 		@y=y
-	to_mtrx:=>Mtrx3x3 {
-			x,0,0,
-			y,0,0,
+	to_mtrx:=>Matrix {
+			@x,0,0,
+			@y,0,0,
 			1,0,0,
 		}
-	_from:(m)->
-		assert istype m,Mtrx3x3
-		Vec2 m\get(0,0),m\get(1,0)
+	from:(m)->
+		assert istype m,Matrix
+		Vec m\get(0,0),m\get(1,0)
 	__add:(v)=>@_apply v,(a,b)->a+b
 	__sub:(v)=>@_apply v,(a,b)->a-b
 	__mul:(v)=>@_apply v,(a,b)->a*b
@@ -125,14 +136,14 @@ class Vec2
 	__idiv:(v)=>@_apply v,(a,b)->a//b
 	_apply:(v,f)=>
 		if "number"== type v
-			Vec2 f(@x,v),f(@y,v)
-		else if istype v,Vec2
-			Vec2 f(@x,v.x),f(@y,v.y)
-	-- computes dot product
+			Vec f(@x,v),f(@y,v)
+		else if istype v,Vec
+			Vec f(@x,v.x),f(@y,v.y)
+	-- comp_byutes dot product
 	__concat:(v)=>
-		assert istype v,Vec2
-		@_from @to_mtrx! .. v.to_mtrx!
-	__tostring:=>"[#{@x}, #{@y}]"
+		assert istype v,Vec
+		@from @to_mtrx! .. v.to_mtrx!
+	__tostring:=>"[x:#{@x} y:#{@y}]"
 	lensq:=>@x*@x+@y*@y
 	__len:=>
 		if @x == 0 or @y == 0
@@ -140,12 +151,12 @@ class Vec2
 		else
 			math.sqrt @lensq!
 	clamp:(min,max)=>
-		Vec2 math.min(math.max(@x,min.x),max.x),
+		Vec math.min(math.max(@x,min.x),max.x),
 			math.min(math.max(@y,min.y),max.y)
 	distance:(v)=>
 		dx,dy=@x-v.x,@y-v.y
 		math.abs math.sqrt(dx*dx+dy*dy)
-	normalize:()=> Vec2 @x/#@,@y/#@
+	normalize:()=> Vec @x/#@,@y/#@
 
 class Behavior
 	new:(o={})=>
@@ -157,13 +168,13 @@ class Player extends Behavior
 		super o
 	update:(game,entity)=>
 		if btn 0
-			entity.y-=1
+			entity.pos.y-=1
 		if btn 1
-			entity.y+=1
+			entity.pos.y+=1
 		if btn 2
-			entity.x-=1
+			entity.pos.x-=1
 		if btn 3
-			entity.x+=1
+			entity.pos.x+=1
 
 class Ouch extends Behavior
 	new:(o={})=>
@@ -184,55 +195,80 @@ class FlipX extends Behavior
 
 class Entity
 	new:(o={})=>
-		@x=o.x or 0
-		@y=o.y or 0
-		@sprite=o.sprite or SpriteSet!
+		@pos=o.pos or Vec!
+		@origin=o.origin or Vec!
+		@w=o.w or 16
+		@h=o.h or 16
+		@sprite=o.sprite or Sprite!
 		@behaviors=o.behaviors or {}
 		for b in *@behaviors
 			assert istype b,Behavior
 	update:(game,parent)=>
-		table.sort @behaviors,comp("order")
+		table.sort @behaviors,comp_by("order")
 		for b in *@behaviors
 			b\update game,@
+		@sprite\update game,@
 	draw:(game,parent)=>
 		@sprite\draw game,@
+		if DEBUG
+			trace "ent o:#{@origin} p:#{@pos}"
+			rectb @pos.x,@pos.y,@w,@h,3
+			print "#{@pos}",@pos.x,@pos.y-8,3
 
 class Sprite
 	new:(o={})=>
-		@pos=Vec2 o.x,o.y
-		@sprite_id=o.sprite_id or 1
+		@pos=o.pos or Vec!
+		@z_index=o.z_index or 0
+		@origin=o.origin or Vec!
+		@id=o.id or 1
 		@colorkey=o.colorkey or -1
+		@transforms=TransformSet!
 		@flip=0
+		@w=o.w or 1
+		@h=o.h or 1
+	update:(game,parent)=>
+		@origin=parent.origin+parent.pos
+		@flip=parent.flip
+		if @flip==1
+			@transforms\reflect_x!
+			@transform_is_applied=false
+		if not @transform_is_applied
+			@pos=Vec.from @transforms\apply(@pos\to_mtrx!)
+			@transform_is_applied=true
 	draw:(game,parent)=>
-		x=if parent
-			parent.pos.x + @pos.x
-		else
-			 @pos.x
-		y=if parent
-			parent.pos.y + @pos.y
-		else
-			 @pos.y
-		spr @sprite_id,
-			x,y,
+		p=@origin+@pos
+		spr @id,
+			p.x,p.y,
 			@colorkey,
-			1,@flip,0,2,2
-		--trace "x:#{x} y:#{y}"
-		print "x:#{x} y:#{y} flip:#{@flip}",x,y-8,3
+			1,@flip,0,
+			@w,@h
+		if DEBUG
+			trace "spr o:#{@origin} p:#{@pos}"
+			print "#{p} flip:#{@flip}",p.x,p.y-8,3
 
-class SpriteSet
+class SpriteSet extends Sprite
 	new:(o={})=>
-		@pos=Vec2 o.x,o.y
+		super o
 		@children=o.children or {}
 		for e in *@children
 			assert istype e,Sprite
 	update:(game,parent)=>
+		table.sort @children,comp_by 'z_index'
+		@origin=parent.origin+parent.pos
+		@flip=parent.flip
+		if @flip==1
+			@transforms\reflect_x!
+			@transform_is_applied=false
+		if not @transform_is_applied
+			@pos=Vec.from @transforms\apply(@pos\to_mtrx!)
+			@transform_is_applied=true
 		for e in *@children
 			e\update game,@
 	draw:(game,parent)=>
+		if DEBUG
+			trace "set o:#{@origin} p:#{@pos}"
 		for e in *@children
-			e\draw game,{
-				pos:Vec2 parent.x,parent.y
-			}
+			e\draw game,@
 
 class Game
 	new:(o={})=>
@@ -265,28 +301,30 @@ export BOOT=->
 	export game=Game
 		entities:{
 			Entity
-				x:96
-				y:24
+				pos:Vec 96,24
 				behaviors:{
 					Player!
 					Ouch!
+					FlipX!
 				}
 				sprite:SpriteSet
 					children:{
 						Sprite
-							x:16
-							y:16
-							sprite_id:1
+							id:1
 							colorkey:14
-					}
-			Entity
-				x:11
-				y:12
-				sprite:SpriteSet
-					children:{
+							w:2
+							h:2
 						Sprite
-							sprite_id:1
-							colorkey:14
+							pos:Vec -1,-6
+							id:5 --hat
+							colorkey:0
+							w:2
+							z_index:2
+						Sprite
+							pos:Vec -8,6
+							id:7 --sword
+							colorkey:0
+							z_index:1
 					}
 		}
 
@@ -299,10 +337,14 @@ export TIC=->
 -- 002:ccccceee8888cceeaaaa0cee888a0ceeccca0ccc0cca0c0c0cca0c0c0cca0c0c
 -- 003:eccccccccc888888caaaaaaaca888888cacccccccacccccccacc0ccccacc0ccc
 -- 004:ccccceee8888cceeaaaa0cee888a0ceeccca0cccccca0c0c0cca0c0c0cca0c0c
+-- 005:0002222200242222024442220244422302222223022233332222222222222222
+-- 006:2220000032220000232200002232200022322000333320002222222022222222
+-- 007:dd000000edd000000edd000000edd003000edd300000e3e000003ffe000300ff
 -- 017:cacccccccaaaaaaacaaacaaacaaaaccccaaaaaaac8888888cc000cccecccccec
 -- 018:ccca00ccaaaa0ccecaaa0ceeaaaa0ceeaaaa0cee8888ccee000cceeecccceeee
 -- 019:cacccccccaaaaaaacaaacaaacaaaaccccaaaaaaac8888888cc000cccecccccec
 -- 020:ccca00ccaaaa0ccecaaa0ceeaaaa0ceeaaaa0cee8888ccee000cceeecccceeee
+-- 024:d000000000000000000000000000000000000000000000000000000000000000
 -- 032:2022202000000000222022200000000020222020000000002220222000000000
 -- 048:eeeeeed08eeeede088dddee088dddee088dddee08f888ee0f88888e000000000
 -- </TILES>
