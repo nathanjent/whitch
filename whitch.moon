@@ -7,12 +7,12 @@
 -- script:  moon
 -- palette: https://lospec.com/palette-list/graveyard-mist
 
-DRAW_ENTS=false
-
-lerp=(a,b,t)->(1-t)*a+t*b
+DEBUG=false
 
 -- compare field of 2 tables
 comp=(k)->(a,b)->a[k]<b[k]
+
+lerp=(a,b,t)->(1-t)*a+t*b
 
 -- true if object inherits from type
 istype=(o,t)->
@@ -23,10 +23,9 @@ istype=(o,t)->
 		c=c.__parent
 	false
 
-class Mtrx3x3
-	new:(m={ 1,0,0, 0,1,0, 0,0,1, })=>
+class Matrix
+	new:(m={ 1,0,0, 0,1,0, 0,0,1 })=>
 		@m=m
-		@rl=3
 	_index:(r,c)=>r*3+c+1
 	get:(r,c)=>
 		-- adjust for 1 indexed arrays
@@ -35,192 +34,224 @@ class Mtrx3x3
 	set:(r,c,v)=>
 		assert r*c <= #@m and r*c >= 0
 		@m[@_index(r,c)]=v
-	_apply:(o,f)=>
+	_apply:(o,fn)=>
 		{ a,b,c, d,e,f, g,h,i }=@m
 		if "number"== type o
-			Mtrx3x3 {
-				f(a,o),f(b,o),f(c,o),
-				f(d,o),f(e,o),f(f,o),
-				f(g,o),f(h,o),f(i,o),
+			Matrix {
+				fn(a,o),fn(b,o),fn(c,o),
+				fn(d,o),fn(e,o),fn(f,o),
+				fn(g,o),fn(h,o),fn(i,o),
 			}
 		else
-			assert istype o,Mtrx3x3
+			assert istype o,Matrix
 			{ j,k,l, m,n,o, p,q,r }=o.m
-			Mtrx3x3 {
-				f(a,j),f(b,k),f(c,l),
-				f(d,m),f(e,n),f(f,o),
-				f(g,p),f(h,q),f(i,r),
+			Matrix {
+				fn(a,j),fn(b,k),fn(c,l),
+				fn(d,m),fn(e,n),fn(f,o),
+				fn(g,p),fn(h,q),fn(i,r),
 			}
 	__add:(o)=>@_apply o,(a,b)->a+b
 	__sub:(o)=>@_apply o,(a,b)->a-b
+	__div:(o)=>@_apply o,(a,b)->a/b
+	__idiv:(o)=>@_apply o,(a,b)->a//b
+	__unm:=>@__mul -1
 	__mul:(o)=>
-		if "number"== type o
+		if "number"==type o
 			@_apply o,(a,b)->a*b
-		else if istype o,Mtrx3x3
+		else if istype o,Matrix
 			-- computes dot product
 			{ a,b,c, d,e,f, g,h,i }=@m
 			{ j,k,l, m,n,o, p,q,r }=o.m
-			Mtrx3x3 {
+			Matrix {
 				a*j+b*m+c*p,a*k+b*n+c*q,a*l+b*o+c*r,
 				d*j+e*m+f*p,d*k+e*n+f*q,d*l+e*o+f*r,
 				g*j+h*m+i*p,g*k+h*n+i*q,g*l+h*o+i*r,
 			}
-	__div:(o)=>@_apply o,(a,b)->a/b
-	__idiv:(o)=>@_apply o,(a,b)->a//b
-	__unm:=>@__mul -1
 	__tostring:=>
-		{ a,b,c, d,e,f, g,h,i, }=@m
+		{ a,b,c, d,e,f, g,h,i }=@m
 		"[#{a},#{b},#{c}, #{d},#{e},#{f}, #{g},#{h},#{i}]"
 
-class Transform
+class TransformSet
 	new:=>
-		@s={}
-		@r={}
-		@t={}
+		@s=Matrix!
+		@r=Matrix!
+		@t=Matrix!
 	translate:(x=0,y=0)=>
-		table.insert @t,Mtrx3x3 {
+		@t*=Matrix {
 			1,0,x,
 			0,1,y,
 			0,0,1,
 		}
 	scale:(w=1,h=1)=>
-		table.insert @s,Mtrx3x3 {
+		@s*=Matrix {
 			w,0,0,
 			0,h,0,
 			0,0,1,
 		}
 	reflect:=>@scale -1,-1
-	reflect_x:=>@scale 1,-1
-	reflect_y:=>@scale -1,1
+	reflect_x:=>@scale -1,1
+	reflect_y:=>@scale 1,-1
 	shear:(x=0,y=0)=>
-		table.insert @t,Mtrx3x3 {
+		@s*=Matrix {
 			1,x,0,
 			y,1,0,
 			0,0,1,
 		}
 	rotate:(ang=0)=>
-		c,s=@__angcossin ang
-		table.insert @t,Mtrx {
+		ang=math.rad ang
+		c,s=math.cos(ang),math.sin ang
+		@r*=Matrix {
 			c,-s,0,
 			s, c,0,
 			0, 0,1,
 		}
 	rotate_around_axis:(ang=0,x=0,y=0)=>
-		table.insert @t,@translate(-x,-y) *
-			@rotate(ang) *
-			@translate(x,y)
-	apply:(m)=>
-		for s in *@s
-			m*=s
-		for r in *@r
-			m*=r
-		for t in *@t
-			m*=t
+		@translate(-x,-y)
+		@rotate(ang)
+		@translate(x,y)
+	apply:(m)=>@s*@r*@t*m
 
-class Vec2 extends Mtrx3x3
+class Vec
 	new:(x=0,y=0)=>
-		super {
-			x,0,0,
-			y,0,0,
+		@x=x
+		@y=y
+	to_mtrx:=>Matrix {
+			@x,0,0,
+			@y,0,0,
 			1,0,0,
 		}
-	from:(mtrx)=>
-		assert istype mtrx,Mtrx3x3
-		Vec2 mtrx\get(0,0),mtrx\get(1,0)
-	x:(v)=>
-		if v
-			@\set 0,0,v
+	from:(m)->
+		assert istype m,Matrix
+		Vec m\get(0,0),m\get(1,0)
+	__add:(v)=>@_apply v,(a,b)->a+b
+	__sub:(v)=>@_apply v,(a,b)->a-b
+	__div:(v)=>@_apply v,(a,b)->a/b
+	__idiv:(v)=>@_apply v,(a,b)->a//b
+	__mul:(v)=>
+		if "number"==type v
+			@_apply v,(a,b)->a*b
+		else if istype v,Vec
+			-- dot product
+			@x*v.x+@y*v.y
+	__unm:=>@mul -1
+	_apply:(v,f)=>
+		if "number"== type v
+			Vec f(@x,v),f(@y,v)
+		else if istype v,Vec
+			Vec f(@x,v.x),f(@y,v.y)
+	__eq:(v)=>istype(v,Vec) and
+		@x==v.x and @y==v.y
+	__tostring:=>"[x:#{@x} y:#{@y}]"
+	lensq:=>@x*@x+@y*@y
+	__len:=>
+		if @x == 0 or @y == 0
+			0
 		else
-			@\get 0,0
-	y:(v)=>
-		if v
-			@\set(1,0,v)
-		else
-			@\get(1,0)
-	__add:(v)=>@from super(v)
-	__sub:(v)=>@from super(v)
-	-- computes dot product
-	__mul:(v)=>@from super(v)
-	__unm:=>@from super(v)
-	__tostring:=>"[#{@x!}, #{@y!}]"
-	__len:=>math.abs math.sqrt(@x!*@x!+@y!*@y!)
-	magnitude:=>_len!
+			math.abs math.sqrt(@lensq!)
 	clamp:(min,max)=>
-		Vec2 math.min(math.max(@x!,min.x!),max.x!),math.min(math.max(@y!,min.y!),max.y!)
+		Vec math.min(math.max(@x,min.x),max.x),
+			math.min(math.max(@y,min.y),max.y)
 	distance:(v)=>
-		dx=@x!-v\x!
-		dy=@y!-v\y!
+		dx,dy=@x-v.x,@y-v.y
 		math.abs math.sqrt(dx*dx+dy*dy)
-	normalize:()=> Vec2 @x!/#@,@y!/#@
+	norm:()=> Vec @x/#@,@y/#@
 
 class Behavior
 	new:(o={})=>
 		@order=o.order or 0
-	update:(game,scene,entity)=>
+	update:(game,scene,actor)=>
 
 class Player extends Behavior
 	new:(o={})=>
 		super o
-	update:(game,scene,entity)=>
-		vx=entity.vel\x!
-		if entity.vel\x!>-entity.vel_max\x! and btn 2
-			entity.vel\x entity.vel\x!-entity.acc\x!
-			entity.flip=1
-			if entity.mode=="idle"
-				entity.mode="walk"
-		if entity.vel\x!<entity.vel_max\x! and btn 3
-			entity.vel\x entity.vel\x!+entity.acc\x!
-			entity.flip=0
-			if entity.mode=="idle"
-				entity.mode="walk"
-		if vx==entity.vel\x!
-			if entity.vel\x!>0.5
-				entity.vel\x entity.vel\x!-entity.acc\x!
-			else if entity.vel\x!<-0.5
-				entity.vel\x entity.vel\x!+entity.acc\x!
+	update:(game,scene,actor)=>
+		vx=actor.vel.x
+		if actor.vel.x>-actor.vel_max.x and btn 2
+			actor.vel.x=actor.vel.x-actor.acc.x
+			actor.flip=1
+			if actor.mode=="idle"
+				actor.mode="walk"
+		if actor.vel.x<actor.vel_max.x and btn 3
+			actor.vel.x=actor.vel.x+actor.acc.x
+			actor.flip=0
+			if actor.mode=="idle"
+				actor.mode="walk"
+		if vx==actor.vel.x
+			if actor.vel.x>0.5
+				actor.vel.x=actor.vel.x-actor.acc.x
+			else if actor.vel.x<-0.5
+				actor.vel.x=actor.vel.x+actor.acc.x
 			else
-				entity.vel\x 0
+				actor.vel.x=0
 
-		if scene\hit_wall entity
-			entity.vel\x 0
+		if scene\hit_wall actor
+			actor.vel.x=0
 
-		if scene\hit_ground entity
-			entity.vel\y 0
-			if entity.mode=="jump"
-				entity.mode="idle"
+		if scene\hit_ground actor
+			actor.vel.y=0
+			if actor.mode=="jump"
+				actor.mode="idle"
 		else
-			entity.vel\y entity.vel\y!+entity.acc\y!
+			actor.vel.y=actor.vel.y+actor.acc.y
 
-		if entity.vel\y! ==0 and btnp 4
-			entity.vel\y entity.vel_max\y!
-			entity.mode="jump"
+		if actor.vel.y==0 and btnp 4
+			actor.vel.y=actor.vel_max.y
+			actor.mode="jump"
 
-		if scene\hit_ceiling entity
-			entity.vel\y 0
+		if scene\hit_ceiling actor
+			actor.vel.y=0
 
-		if entity.vel\x! ==0 and entity.vel\y! ==0
-			entity.mode="idle"
+		if actor.vel.x==0 and actor.vel.y==0
+			actor.mode="idle"
 
-		entity.pos\x entity.pos\x!+entity.vel\x!
-		entity.pos\y entity.pos\y!+entity.vel\y!
+		actor.pos.x=actor.pos.x+actor.vel.x
+		actor.pos.y=actor.pos.y+actor.vel.y
 
-		super game,scene,entity
+		super game,scene,actor
 
-class Entity
+class Ouch extends Behavior
 	new:(o={})=>
-		@pos=o.pos or Vec2!
-		@vel=o.vel or Vec2!
-		@vel_max=o.vel_max or Vec2 1.5,1.5
-		@acc=o.acc or Vec2 0.3,0.3
-		@z_index=o.z_index or 0
-		@w=o.w or 8
-		@h=o.h or 8
+		super o
+	update:(game,actor)=>
+		if actor.is_player and actor.is_hurt
+			game.camera.shake=true
+			game.shake=2
+
+class FlipX extends Behavior
+	new:(o={})=>
+		super o
+	update:(game,actor)=>
+		if btn 2
+			actor.flip=0
+		if btn 3
+			actor.flip=1
+
+class Behavioral
+	new:(o={})=>
 		@behaviors=o.behaviors or {}
-		@damage=1
-		@hp=3
 		for b in *@behaviors
 			assert istype b,Behavior
-	-- called once per entity on first update
+	update:(game,scene)=>
+		table.sort @behaviors,comp("order")
+		for b in *@behaviors
+			b\update game,scene,@
+	draw:(game,scene)=>
+
+class Actor extends Behavioral
+	new:(o={})=>
+		super o
+		@pos=o.pos or Vec!
+		@vel=o.vel or Vec!
+		@vel_max=o.vel_max or Vec 1.5,1.5
+		@acc=o.acc or Vec 0.3,0.3
+		@z_index=o.z_index or 0
+		@origin=Vec!
+		@w=o.w or 8
+		@h=o.h or 8
+		@damage=1
+		@is_player=o.is_player
+		@hp=3
+	-- called once per actor on first update
 	onload:(game,scene)=>
 	take_damage:(game,scene,enemy)=>
 		trace "ouch"
@@ -235,69 +266,67 @@ class Entity
 		for b in *@behaviors
 			b\update game,scene,@
 	draw:(game,scene)=>
-		if DRAW_ENTS
+		if DEBUG
 			rectb @pos.x,@pos.y,@w,@h,11
-			print "x:#{@x} y:#{@y}",@x,@y+@h,11
-			print "vx:#{@vx} vy:#{@vy}",@x,@y+@h+7,11
+			print "x:#{@pos.x} y:#{@pos.y}",@pos.x,@pos.y+@h,11
+			print "vx:#{@vel.x} vy:#{@vel.y}",@pos.x,@pos.y+@h+7,11
 
 class Sprite
 	new:(o={})=>
 		@id=o.id or 0
+		@x=0
+		@y=0
 		@colorkey=o.colorkey or -1
+		@transforms=TransformSet!
 		@w=o.w or 1
 		@h=o.h or 1
+		@z_index=o.z_index or 0
 		@scale=o.scale or 1
 		@flip=o.flip or 0
 		@rotate=o.rotate or 0
-	draw:(game,scene,entity)=>
+	update:(game,scene,actor,parent)=>
+		@flip=parent.flip
+		p=parent.origin+parent.pos
+		@x=p.x
+		@y=p.y
+	draw:(game,scene,actor,parent)=>
 		spr @id,
-			entity.x,entity.y,
+			@x,@y,
 			@colorkey,
-			entity.scale or @scale,
-			entity.flip or @flip,
-			entity.rotate or @rotate,
+			actor.scale or @scale,
+			actor.flip or @flip,
+			actor.rotate or @rotate,
 			@w,@h
 
-class SpriteGroup
+class SpriteSet extends Sprite
 	new:(o={})=>
+		super o
+		@pos=o.pos or Vec!
+		@origin=Vec!
 		@sprites=o.sprites or {}
 		for s in *@sprites
-			assert istype(s,Sprite) or istype(s,SpriteGroup)
-	draw:(game,scene,entity)=>
+			assert istype s,Sprite
+	update:(game,scene,actor,parent)=>
+		table.sort @sprites,comp 'z_index'
+		@origin=parent.origin+parent.pos
+		if @flip!=parent.flip
+			@flip=parent.flip
+			@transforms\rotate_around_axis 360,actor.pos.x,actor.pos.y
+			@pos=Vec.from @transforms\apply(@pos\to_mtrx!)
 		for s in *@sprites
-			s\draw game,scene,entity
+			s\update game,scene,actor,@
+	draw:(game,scene,actor,parent)=>
+		if DEBUG
+			pix @origin.x,@origin.y,4
+			circb @origin.x,@origin.y,2,4
+			trace "set o:#{@origin} p:#{@pos}"
+		for s in *@sprites
+			s\draw game,scene,actor,@
 
-class Frame extends SpriteGroup
+class Frame extends SpriteSet
 	new:(o={})=>
 		super o
 		@hold=o.hold or 1
-
-class Transform extends SpriteGroup
-	new:(o={})=>
-		super o
-		@x=o.x or 0
-		@y=o.y or 0
-		@fx=o.fx or 0
-	draw:(game,scene,entity)=>
-		entity = if entity.flip == 1
-			{
-				x:@fx+entity.pos\x!
-				y:@y+entity.pos\y!
-				scale:entity.scale
-				flip:entity.flip
-				rotate:entity.rotate
-			}
-		else
-			{
-				x:@x+entity.pos\x!
-				y:@y+entity.pos\y!
-				scale:entity.scale
-				flip:entity.flip
-				rotate:entity.rotate
-			}
-		if @flip
-			@child.flip=@flip
-		super game,scene,entity
 
 class Mode
 	new:(o={})=>
@@ -305,10 +334,9 @@ class Mode
 		for f in *@frames
 			assert istype f,Frame
 
-class Actor extends Entity
+class ModalActor extends Actor
 	new:(o={})=>
 		super o
-		@isplayer=o.isplayer
 		@sprite=o.sprite
 		@scale=o.scale
 		@flip=o.flip
@@ -336,11 +364,12 @@ class Actor extends Entity
 					@mode="idle"
 			@sprite=m_data.frames[@frame_cursor]
 			@frame_next_tic=game.t+@sprite.hold
+		@sprite\update game,scene,@,@
 	draw:(game,scene)=>
-		@sprite\draw game,scene,@
+		@sprite\draw game,scene,@,@
 		super game,scene
 
-class Map extends Entity
+class Map extends Behavioral
 	new:(o={})=>
 		super o
 		@w=o.w or 30
@@ -351,61 +380,66 @@ class Map extends Entity
 		@scale=o.scale or 1
 		@remap=o.remap
 	update:(game,scene)=>
-		super game,scene
+		super game,scene,@
 	draw:(game,scene)=>
-		super game,scene
 		map @x,@y,@w,@h,@sx,@sy,
 			@colorkey,@scale,
 			@remap
 
-class Scene extends Entity
+class Scene
 	new:(o={})=>
-		super o
 		@cls_color=o.cls_color or 0
-		@entities=o.entities or {}
-		for e in *@entities
-			assert istype e,Entity
+		@actors=o.actors or {}
+		for e in *@actors
+			assert istype e,Actor
+		@maps=o.maps or {}
+		for e in *@maps
+			assert istype e,Map
 	issolid:(x,y)=>fget mget(x//8,y//8),0
 	_aabb:(o)=>
-		x=o.pos\x!
+		x=o.pos.x
 		trace x
-		y=o.pos\y!
+		y=o.pos.y
 		trace y
-		vx=o.vel\x!
+		vx=o.vel.x
 		trace vx
-		vy=o.vel\y!
+		vy=o.vel.y
 		trace vy
 		x+vx,y+vy,x+vx+o.w-1,y+vy+o.h-1
-	hit_wall:(entity)=>
-		x1,y1,x2,y2=@_aabb entity
-		x = if entity.flip == 1
+	hit_wall:(actor)=>
+		x1,y1,x2,y2=@_aabb actor
+		x = if actor.flip == 1
 			x1
 		else
 			x2
-		for y=y1,y2-entity.vel\y!
+		for y=y1,y2-actor.vel.y
 			if @issolid(x,y)
 				return true
-	hit_ground:(entity)=>
-		x1,_,x2,y2=@_aabb entity
+	hit_ground:(actor)=>
+		x1,_,x2,y2=@_aabb actor
 		for x=x1,x2
 			if @issolid(x,y2+1)
 				return true
-	hit_ceiling:(entity)=>
-		x1,y1,x2,_=@_aabb entity
+	hit_ceiling:(actor)=>
+		x1,y1,x2,_=@_aabb actor
 		for x=x1,x2
 			if @issolid(x,y1)
 				return true
-	add_entity:(e)=>
-		assert istype e,Entity
-		table.insert @entities,e
+	add_actor:(e)=>
+		assert istype e,Actor
+		table.insert @actors,e
 	update:(game)=>
-		table.sort @entities,comp("z_index")
-		for entity in *@entities
-			entity\update game,@
+		table.sort @actors,comp("z_index")
+		for actor in *@actors
+			actor\update game,@
+		for m in *@maps
+			m\update game,@
 	draw:(game)=>
 		cls @cls_color
-		for entity in *@entities
-			entity\draw game,@
+		for actor in *@actors
+			actor\draw game,@
+		for m in *@maps
+			m\draw game,@
 
 class Game
 	new:(o={})=>
@@ -414,6 +448,8 @@ class Game
 			assert istype s,Scene
 		@cur_scene=1
 		@t=0
+		@camera=o.camera or {}
+		@shake=0
 	add_scene:(s)=>
 		assert istype s,Scene
 		table.insert @scenes,s
@@ -427,6 +463,17 @@ class Game
 		if @game_end
 			cls!
 			print "You are dead.",64,84,1,false,2
+		@camera_shake!
+	camera_shake:=>
+		if @camera.shake
+			if @shake>0
+				d=1
+				poke 0x3FF9,math.random(-d,d)
+				poke 0x3FF9+1,math.random(-d,d)
+				@shake-=1
+				if @shake==0
+					memset 0x3FF9,0,2
+					@camera.shake=false
 
 export BOOT=->
 	head=Sprite
@@ -488,81 +535,64 @@ export BOOT=->
 	wand_90=Sprite
 		id:339
 		colorkey:9
-	player=Actor
+
+	player=ModalActor
 		w:11
 		h:22
-		pos:Vec2 96,24
-		acc:Vec2 .1,.2
-		vel_max:Vec2 1.3,-3.1
+		pos:Vec 96,24
+		acc:Vec .1,.2
+		vel_max:Vec 1.3,-3.1
 		behaviors:{ Player! }
 		modes:{}
+
 	player.modes.idle=Mode
 		frames:{
 			Frame
 				hold:12
 				sprites:{
-					Transform{x:-9, fx:-4, y:player.h-32, sprites:{hat}}
-					Transform{x:-1, fx:4,  y:player.h-8,  sprites:{foot_back}}
-					Transform{x:6,  fx:-3, y:player.h-8,  sprites:{foot_lift}}
-					Transform{x:-3, fx:-2, y:player.h-20, sprites:{waist1}}
-					Transform{x:9, fx:-4, y:player.h-24, sprites:{wand_60}}
-					Transform{x:5,  fx:-4, y:player.h-19, sprites:{fist_up}}
-					Transform{x:-5, fx:8,  y:player.h-16, sprites:{hand_up}}
-					Transform{x:-3, fx:-2, y:player.h-30, sprites:{head}}
-				}
-			Frame
-				hold:12
-				sprites:{
-					Transform{x:-10, fx:-5, y:player.h-32, sprites:{hat}}
-					Transform{x:-1,  fx:4,  y:player.h-8,  sprites:{foot_back}}
-					Transform{x:6,   fx:-3, y:player.h-8,  sprites:{foot_lift}}
-					Transform{x:-4,  fx:-3, y:player.h-20, sprites:{waist1}}
-					Transform{x:9,  fx:-4, y:player.h-25, sprites:{wand_60}}
-					Transform{x:5,   fx:-2, y:player.h-20, sprites:{fist_up}}
-					Transform{x:-6,  fx:8,  y:player.h-16, sprites:{hand_up}}
-					Transform{x:-4,  fx:-3, y:player.h-30, sprites:{head}}
-				}
-			Frame
-				hold:12
-				sprites:{
-					Transform{x:-9, fx:-4, y:player.h-32, sprites:{hat}}
-					Transform{x:-1, fx:4,  y:player.h-8,  sprites:{foot_back}}
-					Transform{x:6,  fx:-3, y:player.h-8,  sprites:{foot_lift}}
-					Transform{x:-3, fx:-2, y:player.h-20, sprites:{waist2}}
-					Transform{x:10, fx:-4, y:player.h-25, sprites:{wand_60}}
-					Transform{x:6,  fx:-2, y:player.h-20, sprites:{fist_up}}
-					Transform{x:-5, fx:8,  y:player.h-15, sprites:{hand_up}}
-					Transform{x:-3, fx:-2, y:player.h-30, sprites:{head}}
+					SpriteSet{z_index:2,pos:Vec(-9,player.h-32), sprites:{hat}}
+					SpriteSet{z_index:0,pos:Vec(-1,player.h-8), sprites:{foot_back}}
+					SpriteSet{z_index:1,pos:Vec( 6,player.h-8), sprites:{foot_lift}}
+					SpriteSet{z_index:2,pos:Vec(-3,player.h-20), sprites:{waist1}}
+					SpriteSet{z_index:4,pos:Vec( 9,player.h-24), sprites:{wand_60}}
+					SpriteSet{z_index:3,pos:Vec( 5,player.h-19), sprites:{fist_up}}
+					SpriteSet{z_index:3,pos:Vec(-5,player.h-16), sprites:{hand_up}}
+					SpriteSet{z_index:5,pos:Vec(-3,player.h-30), sprites:{head}}
 				}
 		}
+
 	player.modes.walk=Mode
 		frames:{
 			Frame
 				sprites:{
-					Transform{x:-9, y:player.h-32, fx:-5, sprites:{hat}}
-					Transform{x:-1, y:player.h-8, fx:4, sprites:{foot_back}}
-					Transform{x:6, y:player.h-8, fx:-3, sprites:{foot_lift}}
-					Transform{x:-3, y:player.h-20, fx:-2, sprites:{waist2}}
-					Transform{x:-3, y:player.h-30, fx:-1, sprites:{head}}
+					SpriteSet{z_index:2,pos:Vec(-9,player.h-32), sprites:{hat}}
+					SpriteSet{z_index:0,pos:Vec(-1,player.h-8), sprites:{foot_back}}
+					SpriteSet{z_index:1,pos:Vec(6,player.h-8), sprites:{foot_lift}}
+					SpriteSet{z_index:2,pos:Vec(-3,player.h-20), sprites:{waist2}}
+					SpriteSet{z_index:5,pos:Vec(-3,player.h-30), sprites:{head}}
 				}
 		}
+
 	player.modes.jump=Mode
 		frames:{
 			Frame
 				sprites:{
-					Transform{x:-9, y:player.h-32, fx:-5, sprites:{hat}}
-					Transform{x:-1, y:player.h-8, fx:4, sprites:{foot_back}}
-					Transform{x:6, y:player.h-8, fx:-3, sprites:{foot_lift}}
-					Transform{x:-3, y:player.h-20, fx:-2, sprites:{waist2}}
-					Transform{x:-3, y:player.h-30, fx:-1, sprites:{head}}
+					SpriteSet{z_index:2,pos:Vec(-9,player.h-32), sprites:{hat}}
+					SpriteSet{z_index:0,pos:Vec(-1,player.h-8), sprites:{foot_back}}
+					SpriteSet{z_index:1,pos:Vec(6,player.h-8), sprites:{foot_lift}}
+					SpriteSet{z_index:2,pos:Vec(-3,player.h-20), sprites:{waist2}}
+					SpriteSet{z_index:5,pos:Vec(-3,player.h-30), sprites:{head}}
 				}
 		}
+
 	export game=Game
 		scenes:{
 			Scene
 				cls_color:15
-				entities:{
+				actors:{
 					player
+				}
+				maps:{
 					Map
 						colorkey:0
 						z_index:-1

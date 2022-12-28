@@ -1,15 +1,15 @@
 -- title:   game title
--- author:  game developer, email, etc.
+-- author:  GR8N8
 -- desc:    short description
 -- site:    website link
--- license: MIT License (change this to your license of choice)
+-- license: MIT License
 -- version: 0.1
 -- script:  moon
 
-DEBUG=false
+DEBUG=true
 
--- comp_byare field of 2 tables
-comp_by=(k)->(a,b)->a[k]<b[k]
+-- compare field of 2 tables
+comp=(k)->(a,b)->a[k]<b[k]
 
 -- true if object inherits from type
 istype=(o,t)->
@@ -49,22 +49,24 @@ class Matrix
 			}
 	__add:(o)=>@_apply o,(a,b)->a+b
 	__sub:(o)=>@_apply o,(a,b)->a-b
-	__mul:(o)=>@_apply o,(a,b)->a*b
 	__div:(o)=>@_apply o,(a,b)->a/b
 	__idiv:(o)=>@_apply o,(a,b)->a//b
-	-- comp_byutes dot product
-	__concat:(o)=>
-		assert istype o,Matrix
-		{ a,b,c, d,e,f, g,h,i }=@m
-		{ j,k,l, m,n,o, p,q,r }=o.m
-		Matrix {
-			a*j+b*m+c*p,a*k+b*n+c*q,a*l+b*o+c*r,
-			d*j+e*m+f*p,d*k+e*n+f*q,d*l+e*o+f*r,
-			g*j+h*m+i*p,g*k+h*n+i*q,g*l+h*o+i*r,
-		}
+	__unm:=>@__mul -1
+	__mul:(o)=>
+		if "number"==type o
+			@_apply o,(a,b)->a*b
+		else if istype o,Matrix
+			-- computes dot product
+			{ a,b,c, d,e,f, g,h,i }=@m
+			{ j,k,l, m,n,o, p,q,r }=o.m
+			Matrix {
+				a*j+b*m+c*p,a*k+b*n+c*q,a*l+b*o+c*r,
+				d*j+e*m+f*p,d*k+e*n+f*q,d*l+e*o+f*r,
+				g*j+h*m+i*p,g*k+h*n+i*q,g*l+h*o+i*r,
+			}
 	__tostring:=>
 		{ a,b,c, d,e,f, g,h,i }=@m
-		"[#{a},#{b},#{c},#{d},#{e},#{f},#{g},#{h},#{i}]"
+		"[#{a},#{b},#{c}, #{d},#{e},#{f}, #{g},#{h},#{i}]"
 
 class TransformSet
 	new:=>
@@ -72,13 +74,13 @@ class TransformSet
 		@r=Matrix!
 		@t=Matrix!
 	translate:(x=0,y=0)=>
-		@t..=Matrix {
+		@t*=Matrix {
 			1,0,x,
 			0,1,y,
 			0,0,1,
 		}
 	scale:(w=1,h=1)=>
-		@s..=Matrix {
+		@s*=Matrix {
 			w,0,0,
 			0,h,0,
 			0,0,1,
@@ -87,7 +89,7 @@ class TransformSet
 	reflect_x:=>@scale -1,1
 	reflect_y:=>@scale 1,-1
 	shear:(x=0,y=0)=>
-		@s..=Matrix {
+		@s*=Matrix {
 			1,x,0,
 			y,1,0,
 			0,0,1,
@@ -95,16 +97,16 @@ class TransformSet
 	rotate:(ang=0)=>
 		ang=math.rad ang
 		c,s=math.cos(ang),math.sin ang
-		@r..=Matrix {
+		@r*=Matrix {
 			c,-s,0,
 			s, c,0,
 			0, 0,1,
 		}
 	rotate_around_axis:(ang=0,x=0,y=0)=>
-		@t..=@translate(-x,-y) ..
-			@rotate(ang) ..
-			@translate(x,y)
-	apply:(m)=>@s..@r..@t..m
+		@translate(-x,-y)
+		@rotate(ang)
+		@translate(x,y)
+	apply:(m)=>@s*@r*@t*m
 
 m=Matrix {
 	5,0,0
@@ -131,25 +133,29 @@ class Vec
 		Vec m\get(0,0),m\get(1,0)
 	__add:(v)=>@_apply v,(a,b)->a+b
 	__sub:(v)=>@_apply v,(a,b)->a-b
-	__mul:(v)=>@_apply v,(a,b)->a*b
 	__div:(v)=>@_apply v,(a,b)->a/b
 	__idiv:(v)=>@_apply v,(a,b)->a//b
+	__mul:(v)=>
+		if "number"==type v
+			@_apply v,(a,b)->a*b
+		else if istype v,Vec
+			-- dot product
+			@x*v.x+@y*v.y
+	__unm:=>@ * -1
 	_apply:(v,f)=>
 		if "number"== type v
 			Vec f(@x,v),f(@y,v)
 		else if istype v,Vec
 			Vec f(@x,v.x),f(@y,v.y)
-	-- comp_byutes dot product
-	__concat:(v)=>
-		assert istype v,Vec
-		@from @to_mtrx! .. v.to_mtrx!
+	__eq:(v)=>istype(v,Vec) and
+		@x==v.x and @y==v.y
 	__tostring:=>"[x:#{@x} y:#{@y}]"
 	lensq:=>@x*@x+@y*@y
 	__len:=>
 		if @x == 0 or @y == 0
 			0
 		else
-			math.sqrt @lensq!
+			math.abs math.sqrt(@lensq!)
 	clamp:(min,max)=>
 		Vec math.min(math.max(@x,min.x),max.x),
 			math.min(math.max(@y,min.y),max.y)
@@ -158,28 +164,34 @@ class Vec
 		math.abs math.sqrt(dx*dx+dy*dy)
 	normalize:()=> Vec @x/#@,@y/#@
 
+v1=Vec 2,2
+t=TransformSet!
+t\reflect_x!
+v2=Vec.from t\apply(v1\to_mtrx!)
+assert v2.x == -2 and v2.y == 2, "expect v2 to be [-2,2] but was #{v2}"
+
 class Behavior
 	new:(o={})=>
 		@order=o.order or 0
-	update:(game,entity)=>
+	update:(game,actor)=>
 
 class Player extends Behavior
 	new:(o={})=>
 		super o
-	update:(game,entity)=>
+	update:(game,actor)=>
 		if btn 0
-			entity.pos.y-=1
+			actor.pos.y-=1
 		if btn 1
-			entity.pos.y+=1
+			actor.pos.y+=1
 		if btn 2
-			entity.pos.x-=1
+			actor.pos.x-=1
 		if btn 3
-			entity.pos.x+=1
+			actor.pos.x+=1
 
 class Ouch extends Behavior
 	new:(o={})=>
 		super o
-	update:(game,entity)=>
+	update:(game,actor)=>
 		if btn 7
 			game.camera.shake=true
 			game.shake=2
@@ -187,103 +199,101 @@ class Ouch extends Behavior
 class FlipX extends Behavior
 	new:(o={})=>
 		super o
-	update:(game,entity)=>
+	update:(game,actor)=>
 		if btn 2
-			entity.flip=0
+			actor.flip=0
 		if btn 3
-			entity.flip=1
+			actor.flip=1
 
-class Entity
+class Actor
 	new:(o={})=>
 		@pos=o.pos or Vec!
-		@origin=o.origin or Vec!
+		@origin=Vec!
 		@w=o.w or 16
 		@h=o.h or 16
 		@sprite=o.sprite or Sprite!
 		@behaviors=o.behaviors or {}
 		for b in *@behaviors
 			assert istype b,Behavior
-	update:(game,parent)=>
-		table.sort @behaviors,comp_by("order")
+	update:(game)=>
+		table.sort @behaviors,comp("order")
 		for b in *@behaviors
 			b\update game,@
-		@sprite\update game,@
-	draw:(game,parent)=>
-		@sprite\draw game,@
+		@sprite\update game,@,@
+	draw:(game)=>
+		@sprite\draw game,@,@
 		if DEBUG
 			trace "ent o:#{@origin} p:#{@pos}"
 			rectb @pos.x,@pos.y,@w,@h,3
-			print "#{@pos}",@pos.x,@pos.y-8,3
+			--print "#{@pos}",@pos.x,@pos.y-8,3,0,1,1
 
 class Sprite
 	new:(o={})=>
-		@pos=o.pos or Vec!
-		@z_index=o.z_index or 0
-		@origin=o.origin or Vec!
-		@id=o.id or 1
+		@id=o.id or 0
+		@x=0
+		@y=0
 		@colorkey=o.colorkey or -1
 		@transforms=TransformSet!
-		@flip=0
 		@w=o.w or 1
 		@h=o.h or 1
-	update:(game,parent)=>
-		@origin=parent.origin+parent.pos
+		@z_index=o.z_index or 0
+		@flip=0
+	update:(game,actor,parent)=>
 		@flip=parent.flip
-		if @flip==1
-			@transforms\reflect_x!
-			@transform_is_applied=false
-		if not @transform_is_applied
-			@pos=Vec.from @transforms\apply(@pos\to_mtrx!)
-			@transform_is_applied=true
-	draw:(game,parent)=>
-		p=@origin+@pos
+		p=parent.origin+parent.pos
+		@x=p.x
+		@y=p.y
+	draw:(game,actor,parent)=>
 		spr @id,
-			p.x,p.y,
+			@x,@y,
 			@colorkey,
 			1,@flip,0,
 			@w,@h
 		if DEBUG
-			trace "spr o:#{@origin} p:#{@pos}"
-			print "#{p} flip:#{@flip}",p.x,p.y-8,3
+			trace "spr x:#{@x} y:#{@y}"
+			--print "x:#{@x} y:#{@y} flip:#{@flip}",@x,@y-8,3,0,1,1
 
 class SpriteSet extends Sprite
 	new:(o={})=>
 		super o
-		@children=o.children or {}
-		for e in *@children
-			assert istype e,Sprite
-	update:(game,parent)=>
-		table.sort @children,comp_by 'z_index'
+		@pos=o.pos or Vec!
+		@origin=Vec!
+		@sprites=o.sprites or {}
+		for s in *@sprites
+			assert istype s,Sprite
+	update:(game,actor,parent)=>
+		table.sort @sprites,comp 'z_index'
 		@origin=parent.origin+parent.pos
-		@flip=parent.flip
-		if @flip==1
-			@transforms\reflect_x!
-			@transform_is_applied=false
-		if not @transform_is_applied
-			@pos=Vec.from @transforms\apply(@pos\to_mtrx!)
-			@transform_is_applied=true
-		for e in *@children
-			e\update game,@
-	draw:(game,parent)=>
+		if @flip!=parent.flip
+			@flip=parent.flip
+			--@transforms\rotate_around_axis 360,actor.pos.x,actor.pos.y
+			--@pos=Vec.from @transforms\apply(@pos\to_mtrx!)
+			@pos=Vec @pos.x*-1,@pos.y
+		for e in *@sprites
+			e\update game,actor,@
+	draw:(game,actor,parent)=>
 		if DEBUG
+			pix @origin.x,@origin.y,4
+			circb @origin.x,@origin.y,2,4
+			line @origin.x,@origin.y,@origin.x+@pos.x,@origin.y+@pos.y,4
 			trace "set o:#{@origin} p:#{@pos}"
-		for e in *@children
-			e\draw game,@
+		for s in *@sprites
+			s\draw game,actor,@
 
 class Game
 	new:(o={})=>
 		@t=0
-		@entities=o.entities or {}
+		@actors=o.actors or {}
 		@camera=o.camera or {}
 		@shake=0
 	update:=>
 		@t+=1
-		for e in *@entities
+		for e in *@actors
 			e\update @
 	draw:=>
 		cls 13
 		map!
-		for e in *@entities
+		for e in *@actors
 			e\draw @
 		@camera_shake!
 	camera_shake:=>
@@ -299,8 +309,8 @@ class Game
 
 export BOOT=->
 	export game=Game
-		entities:{
-			Entity
+		actors:{
+			Actor
 				pos:Vec 96,24
 				behaviors:{
 					Player!
@@ -308,23 +318,30 @@ export BOOT=->
 					FlipX!
 				}
 				sprite:SpriteSet
-					children:{
+					pos:Vec 0,0
+					sprites:{
 						Sprite
 							id:1
 							colorkey:14
 							w:2
 							h:2
-						Sprite
+						SpriteSet
 							pos:Vec -1,-6
-							id:5 --hat
-							colorkey:0
-							w:2
-							z_index:2
-						Sprite
+							sprites:{
+								Sprite
+									id:5 --hat
+									colorkey:0
+									w:2
+									z_index:2
+							}
+						SpriteSet
 							pos:Vec -8,6
-							id:7 --sword
-							colorkey:0
-							z_index:1
+							sprites:{
+								Sprite
+									id:7 --sword
+									colorkey:0
+									z_index:1
+							}
 					}
 		}
 
