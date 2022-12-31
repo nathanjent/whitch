@@ -7,7 +7,7 @@
 -- script:  moon
 -- palette: https://lospec.com/palette-list/graveyard-mist
 
-DEBUG=false
+DEBUG=true
 
 -- compare field of 2 tables
 comp=(k)->(a,b)->a[k]<b[k]
@@ -23,106 +23,10 @@ istype=(o,t)->
 		c=c.__parent
 	false
 
-class Matrix
-	new:(m={ 1,0,0, 0,1,0, 0,0,1 })=>
-		@m=m
-	_index:(r,c)=>r*3+c+1
-	get:(r,c)=>
-		-- adjust for 1 indexed arrays
-		assert r*c <= #@m and r*c >= 0
-		@m[@_index(r,c)]
-	set:(r,c,v)=>
-		assert r*c <= #@m and r*c >= 0
-		@m[@_index(r,c)]=v
-	_apply:(o,fn)=>
-		{ a,b,c, d,e,f, g,h,i }=@m
-		if "number"== type o
-			Matrix {
-				fn(a,o),fn(b,o),fn(c,o),
-				fn(d,o),fn(e,o),fn(f,o),
-				fn(g,o),fn(h,o),fn(i,o),
-			}
-		else
-			assert istype o,Matrix
-			{ j,k,l, m,n,o, p,q,r }=o.m
-			Matrix {
-				fn(a,j),fn(b,k),fn(c,l),
-				fn(d,m),fn(e,n),fn(f,o),
-				fn(g,p),fn(h,q),fn(i,r),
-			}
-	__add:(o)=>@_apply o,(a,b)->a+b
-	__sub:(o)=>@_apply o,(a,b)->a-b
-	__div:(o)=>@_apply o,(a,b)->a/b
-	__idiv:(o)=>@_apply o,(a,b)->a//b
-	__unm:=>@__mul -1
-	__mul:(o)=>
-		if "number"==type o
-			@_apply o,(a,b)->a*b
-		else if istype o,Matrix
-			-- computes dot product
-			{ a,b,c, d,e,f, g,h,i }=@m
-			{ j,k,l, m,n,o, p,q,r }=o.m
-			Matrix {
-				a*j+b*m+c*p,a*k+b*n+c*q,a*l+b*o+c*r,
-				d*j+e*m+f*p,d*k+e*n+f*q,d*l+e*o+f*r,
-				g*j+h*m+i*p,g*k+h*n+i*q,g*l+h*o+i*r,
-			}
-	__tostring:=>
-		{ a,b,c, d,e,f, g,h,i }=@m
-		"[#{a},#{b},#{c}, #{d},#{e},#{f}, #{g},#{h},#{i}]"
-
-class TransformSet
-	new:=>
-		@s=Matrix!
-		@r=Matrix!
-		@t=Matrix!
-	translate:(x=0,y=0)=>
-		@t*=Matrix {
-			1,0,x,
-			0,1,y,
-			0,0,1,
-		}
-	scale:(w=1,h=1)=>
-		@s*=Matrix {
-			w,0,0,
-			0,h,0,
-			0,0,1,
-		}
-	reflect:=>@scale -1,-1
-	reflect_x:=>@scale -1,1
-	reflect_y:=>@scale 1,-1
-	shear:(x=0,y=0)=>
-		@s*=Matrix {
-			1,x,0,
-			y,1,0,
-			0,0,1,
-		}
-	rotate:(ang=0)=>
-		ang=math.rad ang
-		c,s=math.cos(ang),math.sin ang
-		@r*=Matrix {
-			c,-s,0,
-			s, c,0,
-			0, 0,1,
-		}
-	rotate_around_axis:(ang=0,x=0,y=0)=>
-		@translate(-x,-y)
-		@rotate(ang)
-		@translate(x,y)
-	apply:(m)=>@s*@r*@t*m
-
 class Vec
 	new:(x=0,y=0)=>
 		@x=x
 		@y=y
-	to_mtrx:=>Matrix {
-			@x,0,0,
-			@y,0,0,
-			1,0,0,
-		}
-	from:(m)->
-		assert istype m,Matrix
-		Vec m\get(0,0),m\get(1,0)
 	__add:(v)=>@_apply v,(a,b)->a+b
 	__sub:(v)=>@_apply v,(a,b)->a-b
 	__div:(v)=>@_apply v,(a,b)->a/b
@@ -133,7 +37,7 @@ class Vec
 		else if istype v,Vec
 			-- dot product
 			@x*v.x+@y*v.y
-	__unm:=>@mul -1
+	__unm:=>@ * -1
 	_apply:(v,f)=>
 		if "number"== type v
 			Vec f(@x,v),f(@y,v)
@@ -216,6 +120,7 @@ class Ouch extends Behavior
 		if actor.is_player and actor.is_hurt
 			game.camera.shake=true
 			game.shake=2
+			actor.is_hurt=false
 
 class FlipX extends Behavior
 	new:(o={})=>
@@ -240,10 +145,10 @@ class Behavioral
 class Actor extends Behavioral
 	new:(o={})=>
 		super o
-		@pos=o.pos or Vec!
-		@vel=o.vel or Vec!
-		@vel_max=o.vel_max or Vec 1.5,1.5
-		@acc=o.acc or Vec 0.3,0.3
+		@pos=o.pos or Vec o.x,o.y
+		@vel=o.vel or Vec o.vx,o.vy
+		@vel_max=o.vel_max or Vec o.vx_max or 1.5,o.vy_max or 1.5
+		@acc=o.acc or Vec o.ax or 0.3,o.ay or 0.3
 		@z_index=o.z_index or 0
 		@origin=Vec!
 		@w=o.w or 8
@@ -252,24 +157,29 @@ class Actor extends Behavioral
 		@is_player=o.is_player
 		@hp=3
 	-- called once per actor on first update
+	update:(game,scene)=>
+		if not @loaded
+			@onload game,scene
+			@loaded=true
+		super game,scene
+	draw:(game,scene)=>
+		if DEBUG
+			x,y,w,h=@hitbox!
+			trace "actor orig:#{@origin} pos:#{@pos}"
+			rectb x,y,w,h,11
+			print "x:#{@pos.x} y:#{@pos.y}",x+w,y+h,11
+			print "vx:#{@vel.x} vy:#{@vel.y}",x+w,y+h+7,11
+	hitbox:=>
+		@pos.x-@w/2,@pos.y-@h/2,@w,@h
+	aabb:=>
+		w,h=@w/2,@h/2
+		@pos.x-w,@pos.y-h,@pos.x+w,@pos.y+h
 	onload:(game,scene)=>
 	take_damage:(game,scene,enemy)=>
 		trace "ouch"
 		@hp-=enemy.damage
 		if @hp < 0
 			game.game_end=true
-	update:(game,scene)=>
-		if not @loaded
-			@onload game,scene
-			@loaded=true
-		table.sort @behaviors,comp("order")
-		for b in *@behaviors
-			b\update game,scene,@
-	draw:(game,scene)=>
-		if DEBUG
-			rectb @pos.x,@pos.y,@w,@h,11
-			print "x:#{@pos.x} y:#{@pos.y}",@pos.x,@pos.y+@h,11
-			print "vx:#{@vel.x} vy:#{@vel.y}",@pos.x,@pos.y+@h+7,11
 
 class Sprite
 	new:(o={})=>
@@ -277,7 +187,6 @@ class Sprite
 		@x=0
 		@y=0
 		@colorkey=o.colorkey or -1
-		@transforms=TransformSet!
 		@w=o.w or 1
 		@h=o.h or 1
 		@z_index=o.z_index or 0
@@ -291,7 +200,7 @@ class Sprite
 		@y=p.y
 	draw:(game,scene,actor,parent)=>
 		spr @id,
-			@x,@y,
+			@x-@w*4,@y-@h*4,
 			@colorkey,
 			actor.scale or @scale,
 			actor.flip or @flip,
@@ -301,7 +210,7 @@ class Sprite
 class SpriteSet extends Sprite
 	new:(o={})=>
 		super o
-		@pos=o.pos or Vec!
+		@pos=o.pos or Vec o.x,o.y
 		@origin=Vec!
 		@sprites=o.sprites or {}
 		for s in *@sprites
@@ -311,8 +220,7 @@ class SpriteSet extends Sprite
 		@origin=parent.origin+parent.pos
 		if @flip!=parent.flip
 			@flip=parent.flip
-			@transforms\rotate_around_axis 360,actor.pos.x,actor.pos.y
-			@pos=Vec.from @transforms\apply(@pos\to_mtrx!)
+			@pos=Vec @pos.x*-1,@pos.y
 		for s in *@sprites
 			s\update game,scene,actor,@
 	draw:(game,scene,actor,parent)=>
@@ -396,34 +304,24 @@ class Scene
 		for e in *@maps
 			assert istype e,Map
 	issolid:(x,y)=>fget mget(x//8,y//8),0
-	_aabb:(o)=>
-		x=o.pos.x
-		trace x
-		y=o.pos.y
-		trace y
-		vx=o.vel.x
-		trace vx
-		vy=o.vel.y
-		trace vy
-		x+vx,y+vy,x+vx+o.w-1,y+vy+o.h-1
 	hit_wall:(actor)=>
-		x1,y1,x2,y2=@_aabb actor
+		x1,y1,x2,y2=actor\aabb!
 		x = if actor.flip == 1
 			x1
 		else
 			x2
 		for y=y1,y2-actor.vel.y
-			if @issolid(x,y)
+			if @issolid(x+actor.vel.x,y+actor.vel.y)
 				return true
 	hit_ground:(actor)=>
-		x1,_,x2,y2=@_aabb actor
+		x1,_,x2,y2=actor\aabb!
 		for x=x1,x2
-			if @issolid(x,y2+1)
+			if @issolid(x+actor.vel.x,y2+actor.vel.y+1)
 				return true
 	hit_ceiling:(actor)=>
-		x1,y1,x2,_=@_aabb actor
+		x1,y1,x2,_=actor\aabb!
 		for x=x1,x2
-			if @issolid(x,y1)
+			if @issolid(x+actor.vel.x,y1+actor.vel.y)
 				return true
 	add_actor:(e)=>
 		assert istype e,Actor
@@ -539,9 +437,12 @@ export BOOT=->
 	player=ModalActor
 		w:11
 		h:22
-		pos:Vec 96,24
-		acc:Vec .1,.2
-		vel_max:Vec 1.3,-3.1
+		x:96
+		y:24
+		ax:0.1
+		ay:0.2
+		vx_max:1.3
+		vy_max:-3.1
 		behaviors:{ Player! }
 		modes:{}
 
@@ -550,14 +451,14 @@ export BOOT=->
 			Frame
 				hold:12
 				sprites:{
-					SpriteSet{z_index:2,pos:Vec(-9,player.h-32), sprites:{hat}}
-					SpriteSet{z_index:0,pos:Vec(-1,player.h-8), sprites:{foot_back}}
-					SpriteSet{z_index:1,pos:Vec( 6,player.h-8), sprites:{foot_lift}}
-					SpriteSet{z_index:2,pos:Vec(-3,player.h-20), sprites:{waist1}}
-					SpriteSet{z_index:4,pos:Vec( 9,player.h-24), sprites:{wand_60}}
-					SpriteSet{z_index:3,pos:Vec( 5,player.h-19), sprites:{fist_up}}
-					SpriteSet{z_index:3,pos:Vec(-5,player.h-16), sprites:{hand_up}}
-					SpriteSet{z_index:5,pos:Vec(-3,player.h-30), sprites:{head}}
+					SpriteSet{z_index:2, x:-9, y:player.h-32, sprites:{hat}}
+					SpriteSet{z_index:0, x:-1, y:player.h-8, sprites:{foot_back}}
+					SpriteSet{z_index:1, x: 6, y:player.h-8, sprites:{foot_lift}}
+					SpriteSet{z_index:2, x:-3, y:player.h-20, sprites:{waist1}}
+					SpriteSet{z_index:4, x: 9, y:player.h-24, sprites:{wand_60}}
+					SpriteSet{z_index:3, x: 5, y:player.h-19, sprites:{fist_up}}
+					SpriteSet{z_index:3, x:-5, y:player.h-16, sprites:{hand_up}}
+					SpriteSet{z_index:5, x:-3, y:player.h-30, sprites:{head}}
 				}
 		}
 
@@ -565,11 +466,11 @@ export BOOT=->
 		frames:{
 			Frame
 				sprites:{
-					SpriteSet{z_index:2,pos:Vec(-9,player.h-32), sprites:{hat}}
-					SpriteSet{z_index:0,pos:Vec(-1,player.h-8), sprites:{foot_back}}
-					SpriteSet{z_index:1,pos:Vec(6,player.h-8), sprites:{foot_lift}}
-					SpriteSet{z_index:2,pos:Vec(-3,player.h-20), sprites:{waist2}}
-					SpriteSet{z_index:5,pos:Vec(-3,player.h-30), sprites:{head}}
+					SpriteSet{z_index:2, x:-9, y:player.h-32, sprites:{hat}}
+					SpriteSet{z_index:0, x:-1, y:player.h-8, sprites:{foot_back}}
+					SpriteSet{z_index:1, x:6,  y:player.h-8, sprites:{foot_lift}}
+					SpriteSet{z_index:2, x:-3, y:player.h-20, sprites:{waist2}}
+					SpriteSet{z_index:5, x:-3, y:player.h-30, sprites:{head}}
 				}
 		}
 
@@ -577,18 +478,18 @@ export BOOT=->
 		frames:{
 			Frame
 				sprites:{
-					SpriteSet{z_index:2,pos:Vec(-9,player.h-32), sprites:{hat}}
-					SpriteSet{z_index:0,pos:Vec(-1,player.h-8), sprites:{foot_back}}
-					SpriteSet{z_index:1,pos:Vec(6,player.h-8), sprites:{foot_lift}}
-					SpriteSet{z_index:2,pos:Vec(-3,player.h-20), sprites:{waist2}}
-					SpriteSet{z_index:5,pos:Vec(-3,player.h-30), sprites:{head}}
+					SpriteSet{z_index:2, x:-9, y:player.h-32, sprites:{hat}}
+					SpriteSet{z_index:0, x:-1, y:player.h-8, sprites:{foot_back}}
+					SpriteSet{z_index:1, x:6,  y:player.h-8, sprites:{foot_lift}}
+					SpriteSet{z_index:2, x:-3, y:player.h-20, sprites:{waist2}}
+					SpriteSet{z_index:5, x:-3, y:player.h-30, sprites:{head}}
 				}
 		}
 
 	export game=Game
 		scenes:{
 			Scene
-				cls_color:15
+				cls_color:0
 				actors:{
 					player
 				}

@@ -1,12 +1,12 @@
--- title:   game title
+-- title:   Test Cart
 -- author:  GR8N8
--- desc:    short description
+-- desc:    Test out vector idea
 -- site:    website link
 -- license: MIT License
 -- version: 0.1
 -- script:  moon
 
-DEBUG=false
+DEBUG=1
 
 -- compare field of 2 tables
 comp=(k)->(a,b)->a[k]<b[k]
@@ -162,7 +162,7 @@ class Vec
 	distance:(v)=>
 		dx,dy=@x-v.x,@y-v.y
 		math.abs math.sqrt(dx*dx+dy*dy)
-	normalize:()=> Vec @x/#@,@y/#@
+	norm:()=> Vec @x/#@,@y/#@
 
 v1=Vec 2,2
 t=TransformSet!
@@ -179,14 +179,21 @@ class Player extends Behavior
 	new:(o={})=>
 		super o
 	update:(game,actor)=>
+		dx,dy=0,0
 		if btn 0
-			actor.pos.y-=1
+			dy=-1
 		if btn 1
-			actor.pos.y+=1
+			dy=1
 		if btn 2
-			actor.pos.x-=1
+			dx=-1
 		if btn 3
-			actor.pos.x+=1
+			dx=1
+		if game\hit_x actor,dx,dy
+			dx=0
+		if game\hit_y actor,dx,dy
+			dy=0
+		actor.pos.x+=dx
+		actor.pos.y+=dy
 
 class Ouch extends Behavior
 	new:(o={})=>
@@ -205,9 +212,21 @@ class FlipX extends Behavior
 		if btn 3
 			actor.flip=1
 
-class Actor
+class Behavioral
 	new:(o={})=>
-		@pos=o.pos or Vec!
+		@behaviors=o.behaviors or {}
+		for b in *@behaviors
+			assert istype b,Behavior
+	update:(game,scene)=>
+		table.sort @behaviors,comp("order")
+		for b in *@behaviors
+			b\update game,scene,@
+	draw:(game,scene)=>
+
+class Actor extends Behavioral
+	new:(o={})=>
+		super o
+		@pos=o.pos or Vec o.x,o.y
 		@origin=Vec!
 		@w=o.w or 16
 		@h=o.h or 16
@@ -223,9 +242,14 @@ class Actor
 	draw:(game)=>
 		@sprite\draw game,@,@
 		if DEBUG
-			trace "ent o:#{@origin} p:#{@pos}"
-			rectb @pos.x-@w/2,@pos.y-@h/2,@w,@h,3
-			--print "#{@pos}",@pos.x,@pos.y-8,3,0,1,1
+			x,y,w,h=@hitbox!
+			trace "actor orig:#{@origin} pos:#{@pos}"
+			rectb x,y,w,h,3
+			print "x:#{@pos.x} y:#{@pos.y}",x+w,y+h,3
+	hitbox:=>
+		@pos.x-@w/2,@pos.y-@h/2,@w,@h
+	aabb:=>
+		@pos.x-@w/2,@pos.y-@w/2,@pos.x+@w/2,@pos.y+@h/2
 
 class Sprite
 	new:(o={})=>
@@ -269,8 +293,8 @@ class SpriteSet extends Sprite
 			--@transforms\rotate_around_axis 360,actor.pos.x,actor.pos.y
 			--@pos=Vec.from @transforms\apply(@pos\to_mtrx!)
 			@pos=Vec @pos.x*-1,@pos.y
-		for e in *@sprites
-			e\update game,actor,@
+		for s in *@sprites
+			s\update game,actor,@
 	draw:(game,actor,parent)=>
 		if DEBUG
 			pix @origin.x,@origin.y,4
@@ -296,6 +320,17 @@ class Game
 		for e in *@actors
 			e\draw @
 		@camera_shake!
+	issolid:(x,y)=>fget mget(x//8,y//8),0
+	hit_x:(actor,dx,dy)=>
+		x1,y1,x2,y2=actor\aabb!
+		for x=x1,x2
+			if @issolid(x+dx,y1)
+				return true
+	hit_y:(actor,dx,dy)=>
+		x1,y1,x2,y2=actor\aabb!
+		for y=y1,y2
+			if @issolid(x1+dx,y+dy)
+				return true
 	camera_shake:=>
 		if @camera.shake
 			if @shake>0
@@ -402,6 +437,10 @@ export TIC=->
 -- <TRACKS>
 -- 000:100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 -- </TRACKS>
+
+-- <FLAGS>
+-- 000:00000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- </FLAGS>
 
 -- <PALETTE>
 -- 000:1a1c2c5d275db13e53ef7d57ffcd75a7f07038b76425717929366f3b5dc941a6f673eff7f4f4f494b0c2566c86333c57
