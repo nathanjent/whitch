@@ -6,7 +6,7 @@
 -- version: 0.1
 -- script:  moon
 
-DEBUG=true
+DEBUG=false
 
 -- compare field of 2 tables
 comp=(k)->(a,b)->a[k]<b[k]
@@ -224,7 +224,7 @@ class Actor
 		@sprite\draw game,@,@
 		if DEBUG
 			trace "ent o:#{@origin} p:#{@pos}"
-			rectb @pos.x,@pos.y,@w,@h,3
+			rectb @pos.x-@w/2,@pos.y-@h/2,@w,@h,3
 			--print "#{@pos}",@pos.x,@pos.y-8,3,0,1,1
 
 class Sprite
@@ -245,7 +245,7 @@ class Sprite
 		@y=p.y
 	draw:(game,actor,parent)=>
 		spr @id,
-			@x,@y,
+			@x-@w*4,@y-@h*4,
 			@colorkey,
 			1,@flip,0,
 			@w,@h
@@ -256,7 +256,7 @@ class Sprite
 class SpriteSet extends Sprite
 	new:(o={})=>
 		super o
-		@pos=o.pos or Vec!
+		@pos=o.pos or Vec o.x,o.y
 		@origin=Vec!
 		@sprites=o.sprites or {}
 		for s in *@sprites
@@ -326,7 +326,8 @@ export BOOT=->
 							w:2
 							h:2
 						SpriteSet
-							pos:Vec -1,-6
+							x:1
+							y:-10
 							sprites:{
 								Sprite
 									id:5 --hat
@@ -335,7 +336,8 @@ export BOOT=->
 									z_index:2
 							}
 						SpriteSet
-							pos:Vec -8,6
+							x:11
+							y:0
 							sprites:{
 								Sprite
 									id:7 --sword
