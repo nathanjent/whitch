@@ -6,7 +6,7 @@
 -- version: 0.1
 -- script:  moon
 
-DEBUG=1
+DEBUG=false
 
 -- compare field of 2 tables
 comp=(k)->(a,b)->a[k]<b[k]
@@ -231,6 +231,7 @@ class Actor extends Behavioral
 		@w=o.w or 16
 		@h=o.h or 16
 		@sprite=o.sprite or Sprite!
+		@flip=o.flip or 0
 		@behaviors=o.behaviors or {}
 		for b in *@behaviors
 			assert istype b,Behavior
@@ -343,6 +344,20 @@ class Game
 					@camera.shake=false
 
 export BOOT=->
+	tic= Sprite
+		id:1
+		colorkey:14
+		w:2
+		h:2
+	hat=Sprite
+		id:5
+		colorkey:0
+		w:2
+		z_index:2
+	sword=Sprite
+		id:7 --sword
+		colorkey:0
+		z_index:1
 	export game=Game
 		actors:{
 			Actor
@@ -355,30 +370,15 @@ export BOOT=->
 				sprite:SpriteSet
 					pos:Vec 0,0
 					sprites:{
-						Sprite
-							id:1
-							colorkey:14
-							w:2
-							h:2
+						tic
 						SpriteSet
-							x:1
+							x:-1
 							y:-10
-							sprites:{
-								Sprite
-									id:5 --hat
-									colorkey:0
-									w:2
-									z_index:2
-							}
+							sprites:{hat}
 						SpriteSet
-							x:11
+							x:-11
 							y:0
-							sprites:{
-								Sprite
-									id:7 --sword
-									colorkey:0
-									z_index:1
-							}
+							sprites:{sword}
 					}
 		}
 
