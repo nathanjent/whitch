@@ -39,7 +39,8 @@ jobs:
       - name: Make TIC-80
         run: |
           cd tic80
-          cmake ..
+          ls -al
+          cmake
           make -j4
           make install
           
