@@ -15,6 +15,7 @@ env:
   scripttype: moon
   scriptextension: moon
   projectname: whitch
+  BUILD_TYPE: MinSizeRel
 
 jobs:
   build:
@@ -48,7 +49,6 @@ jobs:
           cd TIC-80/build
           cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_SDLGPU=On -DBUILD_PRO=On ..
           cmake --build . --config $BUILD_TYPE --parallel
-          #cpack
           make -j4
           sudo make install
           
