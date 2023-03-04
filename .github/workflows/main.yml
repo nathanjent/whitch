@@ -39,7 +39,7 @@ jobs:
         run: |
           cd nesbox-TIC-80-*
           ls -al
-          cmake
+          cmake .
           make -j4
           make install
           
