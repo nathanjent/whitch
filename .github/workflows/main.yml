@@ -23,21 +23,33 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: release-downloader
-        uses: robinraju/release-downloader@v1.7
+      - name: Clone Github Repo Action
+        uses: GuillaumeFalourd/clone-github-repo-action@v2
         with:
-          repository: nesbox/TIC-80
-          tag: 'v${{ env.tic80version }}.${{ env.tic80release }}'
-          fileName: '*.tar.gz'
-          tarBall: true
-      
-      - name: Extract release
+          owner: nesbox
+          repository: TIC-80
+          
+      - name: Git Submodules
         run: |
-          tar -xf "TIC-80-v${{ env.tic80version }}.${{ env.tic80release }}.tar.gz"
+          cd TIC-80
+          git submodules update --init
+    
+      #- name: release-downloader
+      #  uses: robinraju/release-downloader@v1.7
+      #  with:
+      #    repository: nesbox/TIC-80
+      #    tag: 'v${{ env.tic80version }}.${{ env.tic80release }}'
+      #    fileName: '*.tar.gz'
+      #    tarBall: true
+      
+      #- name: Extract release
+      #  run: |
+      #    tar -xf "TIC-80-v${{ env.tic80version }}.${{ env.tic80release }}.tar.gz"
 
       - name: Make TIC-80
         run: |
-          cd nesbox-TIC-80-*
+          #cd nesbox-TIC-80-*
+          cd TIC-80
           ls -al
           cmake .
           make -j4
