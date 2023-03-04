@@ -80,11 +80,11 @@ jobs:
           name: ${{ env.projectname }} 
           path: ./dist/*
           
-      - uses: ncipollo/release-action@v1
+      - if: ${{ contains( env.GITHUB_REF, "tag" ) }}
+        uses: ncipollo/release-action@v1
         with:
           artifacts: ./dist/${{ env.projectname }}.tic
           token: ${{ secrets.GITHUB_TOKEN }}
           body: 'A [TIC-80](https://tic80.com/) cart.'
           draft: true
           prerelease: true
-          tag: ${{ env.GITHUB_REF }}
