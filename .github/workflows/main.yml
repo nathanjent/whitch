@@ -73,12 +73,9 @@ jobs:
       - name: Compile cart with TIC-80
         run: |
           tic80 --cli --fs . --cmd "load ${projectname:?}.${scriptextension:?} & mkdir dist & save dist/${projectname:?}"
-      
-      - name: Update Release
-        uses: johnwbyrd/update-release@v1.0.0
+          
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3.1.2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          files: './dist/${{ env.projectname }}.tic'
-          message: 'A [TIC-80](https://tic80.com/) cart.'
-          prerelease: true
-          draft: true
+          name: ${{ env.projectname }}.tic
+          path: ./dist/*
