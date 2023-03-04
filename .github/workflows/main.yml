@@ -77,5 +77,10 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3.1.2
         with:
-          name: ${{ env.projectname }}.tic
+          name: ${{ env.projectname }} 
           path: ./dist/*
+          
+      - name: Action Release
+        uses: yakuhzi/release-asset@v1.2.3
+        with:
+          file: ./dist/${{ env.projectname }}.tic
