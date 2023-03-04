@@ -82,5 +82,7 @@ jobs:
           
       - name: Action Release
         uses: yakuhzi/release-asset@v1.2.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           file: ./dist/${{ env.projectname }}.tic
