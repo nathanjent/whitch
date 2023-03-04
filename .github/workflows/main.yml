@@ -23,28 +23,46 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      
-      - name: Clone Github Repo Action
+                
+      - name: Cache TIC-80 build
+        id: cache-tic80
+        uses: actions/cache@v3.2.6
+        with:
+          path: /usr/local/bin/tic80
+          key: tag-v${tic80version:?}.${tic80release:?}
+          
+      - if: ${{ steps.cache-tic80.outputs.cache-hit != 'true' }}
+        name: Clone TIC-80 Github Repo
         uses: GuillaumeFalourd/clone-github-repo-action@v2
         with:
           owner: nesbox
           repository: TIC-80
           
-      - name: Git Submodules
+      - if: ${{ steps.cache-tic80.outputs.cache-hit != 'true' }}
+        name: Checkout TIC-80 Release Tag
+        run: |
+          cd TIC-80
+          git checkout v${tic80version:?}.${tic80release:?}
+          
+      - if: ${{ steps.cache-tic80.outputs.cache-hit != 'true' }}
+        name: Update Git Submodules
         run: |
           cd TIC-80
           git submodule update --init --recursive
           
-      - uses: ruby/setup-ruby@v1
+      - if: ${{ steps.cache-tic80.outputs.cache-hit != 'true' }}
+        uses: ruby/setup-ruby@v1
         with:
           ruby-version: 2.6
 
-      - name: Install
+      - if: ${{ steps.cache-tic80.outputs.cache-hit != 'true' }}
+        name: Install TIC-80 build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install libglu1-mesa-dev libasound2-dev libpulse-dev libaudio-dev libsamplerate0-dev -y
-          
-      - name: Build
+       
+      - if: ${{ steps.cache-tic80.outputs.cache-hit != 'true' }}   
+        name: Build
         run: |
           cd TIC-80/build
           cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_SDLGPU=On -DBUILD_PRO=On ..
@@ -52,30 +70,9 @@ jobs:
           make -j4
           sudo make install
           
-      #- name: release-downloader
-      #  uses: robinraju/release-downloader@v1.7
-      #  with:
-      #    repository: nesbox/TIC-80
-      #    tag: 'v${{ env.tic80version }}.${{ env.tic80release }}'
-      #    fileName: '*.tar.gz'
-      #    tarBall: true
-      
-      #- name: Extract release
-      #  run: |
-      #    tar -xf "TIC-80-v${{ env.tic80version }}.${{ env.tic80release }}.tar.gz"
-
-      #- name: Make TIC-80
-      #  run: |
-      #    #cd nesbox-TIC-80-*
-      #    cd TIC-80
-      #    ls -al
-      #    cmake .
-      #    make -j4
-      #    make install
-          
       - name: Compile cart with TIC-80
         run: |
-          ./tic80 --cli --fs . --cmd "load ${projectname:?}.${scriptextension:?} & mkdir dist & save dist/${projectname:?}"
+          tic80 --cli --fs . --cmd "load ${projectname:?}.${scriptextension:?} & mkdir dist & save dist/${projectname:?}"
       
       - name: Update Release
         uses: johnwbyrd/update-release@v1.0.0
