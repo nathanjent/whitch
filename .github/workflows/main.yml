@@ -27,6 +27,7 @@ jobs:
         uses: robinraju/release-downloader@v1.7
         with:
           repository: nesbox/TIC-80
+          tag: 'v${{ env.tic80version }}.${{ env.tic80release }}'
           tarBall: true
           
       #- name: Download GitHub Release of TIC-80
