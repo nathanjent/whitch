@@ -80,7 +80,7 @@ jobs:
           name: ${{ env.projectname }} 
           path: ./dist/*
           
-      - if: ${{ contains( env.GITHUB_REF, "tag" ) }}
+      - if: ${{ contains( env.GITHUB_REF, 'tag' ) }}
         uses: ncipollo/release-action@v1
         with:
           artifacts: ./dist/${{ env.projectname }}.tic
