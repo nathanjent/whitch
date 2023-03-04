@@ -80,9 +80,10 @@ jobs:
           name: ${{ env.projectname }} 
           path: ./dist/*
           
-      - name: Action Release
-        uses: yakuhzi/release-asset@v1.2.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: ncipollo/release-action@v1
         with:
-          file: ./dist/${{ env.projectname }}.tic
+          artifacts: ./dist/${{ env.projectname }}.tic
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: 'A [TIC-80](https://tic80.com/) cart.'
+          draft: true
+          prerelease: true
