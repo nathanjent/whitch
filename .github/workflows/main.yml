@@ -32,8 +32,26 @@ jobs:
       - name: Git Submodules
         run: |
           cd TIC-80
-          git submodule update --init
-    
+          git submodule update --init --recursive
+          
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.6
+
+      - name: Install
+        run: |
+          sudo apt-get update
+          sudo apt-get install libglu1-mesa-dev libasound2-dev libpulse-dev libaudio-dev libsamplerate0-dev -y
+          
+      - name: Build
+        run: |
+          cd TIC-80build
+          cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_SDLGPU=On -DBUILD_PRO=On ..
+          cmake --build . --config $BUILD_TYPE --parallel
+          #cpack
+          make -j4
+          sudo make install
+          
       #- name: release-downloader
       #  uses: robinraju/release-downloader@v1.7
       #  with:
@@ -46,14 +64,14 @@ jobs:
       #  run: |
       #    tar -xf "TIC-80-v${{ env.tic80version }}.${{ env.tic80release }}.tar.gz"
 
-      - name: Make TIC-80
-        run: |
-          #cd nesbox-TIC-80-*
-          cd TIC-80
-          ls -al
-          cmake .
-          make -j4
-          make install
+      #- name: Make TIC-80
+      #  run: |
+      #    #cd nesbox-TIC-80-*
+      #    cd TIC-80
+      #    ls -al
+      #    cmake .
+      #    make -j4
+      #    make install
           
       - name: Compile cart with TIC-80
         run: |
