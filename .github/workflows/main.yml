@@ -1,0 +1,90 @@
+name: Compile Cart
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+env:
+  tic80version: '1.0'
+  tic80release: '2164'
+  scripttype: moon
+  scriptextension: moon
+  projectname: whitch
+  BUILD_TYPE: MinSizeRel
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+                
+      - name: Cache TIC-80 build
+        id: cache-tic80
+        uses: actions/cache@v3.2.6
+        with:
+          path: /usr/local/bin/tic80
+          key: tag-v${tic80version:?}.${tic80release:?}
+          
+      - if: ${{ steps.cache-tic80.outputs.cache-hit != 'true' }}
+        name: Clone TIC-80 Github Repo
+        uses: GuillaumeFalourd/clone-github-repo-action@v2
+        with:
+          owner: nesbox
+          repository: TIC-80
+          
+      - if: ${{ steps.cache-tic80.outputs.cache-hit != 'true' }}
+        name: Checkout TIC-80 Release Tag
+        run: |
+          cd TIC-80
+          git checkout v${tic80version:?}.${tic80release:?}
+          
+      - if: ${{ steps.cache-tic80.outputs.cache-hit != 'true' }}
+        name: Update Git Submodules
+        run: |
+          cd TIC-80
+          git submodule update --init --recursive
+          
+      - if: ${{ steps.cache-tic80.outputs.cache-hit != 'true' }}
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.6
+
+      - if: ${{ steps.cache-tic80.outputs.cache-hit != 'true' }}
+        name: Install TIC-80 build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install libglu1-mesa-dev libasound2-dev libpulse-dev libaudio-dev libsamplerate0-dev -y
+       
+      - if: ${{ steps.cache-tic80.outputs.cache-hit != 'true' }}   
+        name: Build
+        run: |
+          cd TIC-80/build
+          cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_SDLGPU=On -DBUILD_PRO=On ..
+          cmake --build . --config $BUILD_TYPE --parallel
+          make -j4
+          sudo make install
+          
+      - name: Compile cart with TIC-80
+        run: |
+          tic80 --cli --fs . --cmd "load ${projectname:?}.${scriptextension:?} & mkdir dist & save dist/${projectname:?}"
+          
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3.1.2
+        with:
+          name: ${{ env.projectname }} 
+          path: ./dist/*
+          
+      - if: ${{ contains( env.GITHUB_REF, 'tag' ) }}
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: ./dist/${{ env.projectname }}.tic
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: 'A [TIC-80](https://tic80.com/) cart.'
+          draft: true
+          prerelease: true
