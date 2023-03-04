@@ -14,26 +14,32 @@ env:
   tic80release: '2164'
   scripttype: moon
   scriptextension: moon
-  projectname: batch
+  projectname: whitch
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       
-      - name: Download GitHub Release of TIC-80
-        uses: Legion2/download-release-action@v2.1.0
+      - name: release-downloader
+        uses: robinraju/release-downloader@v1.7
         with:
           repository: nesbox/TIC-80
-          tag: 'v${{ env.tic80version }}.${{ env.tic80release }}'
-          file: 'v${{ env.tic80version }}.tar.gz'
+          tarBall: true
+          
+      #- name: Download GitHub Release of TIC-80
+      #  uses: Legion2/download-release-action@v2.1.0
+      #  with:
+      #    repository: nesbox/TIC-80
+      #    tag: 'v${{ env.tic80version }}.${{ env.tic80release }}'
+      #    file: 'v${{ env.tic80version }}.tar.gz'
       
       - name: Extract release
         run: |
-          tar -xf "v${tic80version:?}.tar.gz"
-          chmod +x tic80
+          mkdir -p tic80
+          tar -xf "v${tic80version:?}.tar.gz" -C tic80
 
       - name: Make TIC-80
         run: |
@@ -43,7 +49,7 @@ jobs:
           
       - name: Compile cart with TIC-80
         run: |
-          ./tic80 --cli --fs . --cmd "import code src/${projectname:?}.${scriptextension:?} & mkdir dist & save dist/${projectname:?}"
+          ./tic80 --cli --fs . --cmd "load ${projectname:?}.${scriptextension:?} & mkdir dist & save dist/${projectname:?}"
       
       - name: Update Release
         uses: johnwbyrd/update-release@v1.0.0
