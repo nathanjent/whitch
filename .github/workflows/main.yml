@@ -87,4 +87,4 @@ jobs:
           body: 'A [TIC-80](https://tic80.com/) cart.'
           draft: true
           prerelease: true
-          commit: ${{ env.GITHUB_SHA }}
+          tag: ${{ env.GITHUB_REF }}
