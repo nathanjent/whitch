@@ -28,7 +28,7 @@ jobs:
         with:
           repository: nesbox/TIC-80
           tag: 'v${{ env.tic80version }}.${{ env.tic80release }}'
-          file: 'TIC-80-v${{ env.tic80version }}.${{ env.tic80release }}.tar.gz'
+          fileName: '*.tar.gz'
           
       #- name: Download GitHub Release of TIC-80
       #  uses: Legion2/download-release-action@v2.1.0
@@ -40,7 +40,7 @@ jobs:
       - name: Extract release
         run: |
           mkdir -p tic80
-          tar -xf "TIC-80-v${tic80version:?}.tar.gz" -C tic80
+          tar -xf "*.tar.gz" -C tic80
 
       - name: Make TIC-80
         run: |
