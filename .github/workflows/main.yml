@@ -1,0 +1,55 @@
+name: Compile Cart
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+env:
+  tic80version: '1.0'
+  tic80release: '2164'
+  scripttype: moon
+  scriptextension: moon
+  projectname: batch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Download GitHub Release of TIC-80
+        uses: Legion2/download-release-action@v2.1.0
+        with:
+          repository: nesbox/TIC-80
+          tag: 'v${{ env.tic80version }}.${{ env.tic80release }}'
+          file: 'v${{ env.tic80version }}.tar.gz'
+      
+      - name: Extract release
+        run: |
+          tar -xf "v${tic80version:?}.tar.gz"
+          chmod +x tic80
+
+      - name: Make TIC-80
+        run: |
+          cd tic80
+          make
+          make install
+          
+      - name: Compile cart with TIC-80
+        run: |
+          ./tic80 --cli --fs . --cmd "import code src/${projectname:?}.${scriptextension:?} & mkdir dist & save dist/${projectname:?}"
+      
+      - name: Update Release
+        uses: johnwbyrd/update-release@v1.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: './dist/${{ env.projectname }}.tic'
+          message: 'A [TIC-80](https://tic80.com/) cart.'
+          prerelease: true
+          draft: true
