@@ -32,7 +32,7 @@ jobs:
       - name: Git Submodules
         run: |
           cd TIC-80
-          git submodules update --init
+          git submodule update --init
     
       #- name: release-downloader
       #  uses: robinraju/release-downloader@v1.7
