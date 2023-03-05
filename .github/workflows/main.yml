@@ -71,13 +71,19 @@ jobs:
           
       - name: Compile cart with TIC-80
         run: |
-          tic80 --cli --fs . --cmd "load ${projectname:?}.${scriptextension:?} & mkdir dist & cd dist & save ${projectname:?} & export html ${projectname:?} --alone=1"
+          tic80 --cli --fs . --cmd "load ${projectname:?}.${scriptextension:?} & mkdir dist & cd dist & save ${projectname:?} & export html ${projectname:?}-html5 --alone=1"
           
-      - name: Upload Artifacts
+      - name: Upload Cart Artifact
         uses: actions/upload-artifact@v3.1.2
         with:
-          name: ${{ env.projectname }} 
-          path: ./dist/*
+          name: ${{ env.projectname }}.tic
+          path: ./dist/*.tic
+          
+      - name: Upload HTML5 Artifacts
+        uses: actions/upload-artifact@v3.1.2
+        with:
+          name: ${{ env.projectname }}-html5.zip
+          path: ./dist/*.zip
           
       - if: ${{ github.ref_type == 'tag' }}   
         uses: ncipollo/release-action@v1
@@ -105,5 +111,5 @@ jobs:
       - if: ${{ github.ref_type == 'tag' }}   
         name: Push Cart to itch.io
         run: |
-          butler push ./dist/${{ env.projectname }}.html ${{ github.repository_owner }}/${projectname:?}:html5 --userversion ${{ github.ref_name }}
+          butler push ./dist/${{ env.projectname }}-html5.zip ${{ github.repository_owner }}/${projectname:?}:html5 --userversion ${{ github.ref_name }}
           butler push ./dist/${{ env.projectname }}.tic ${{ github.repository_owner }}/${projectname:?}:tic --userversion ${{ github.ref_name }}
