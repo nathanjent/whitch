@@ -114,19 +114,24 @@ jobs:
       
       - name: Download Butler
         run: |
-          curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/${butlerversion:?}/archive/default
+          curl -L -o butler.zip \
+            https://broth.itch.ovh/butler/linux-amd64/${butlerversion:?}/archive/default
           unzip butler.zip
           # GNU unzip tends to not set the executable bit even though it's set in the .zip
           chmod +x butler
           # just a sanity check run (and also helpful in case you're sharing CI logs)
           ./butler -V
           
-      - name: Set Butler API Key
-        run: |
-          mkdir -p ~/.config/itch
-          echo ${{ secrets.BUTLER_API }} > ~/.config/itch/butler_creds
-          
       - name: Push Cart to itch.io
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API }}
         run: |
-          butler push ./dist/${{ env.projectname }}-html5.zip ${{ github.repository_owner }}/${projectname:?}:html5 --userversion ${{ github.ref_name }}
-          butler push ./dist/${{ env.projectname }}.tic ${{ github.repository_owner }}/${projectname:?}:tic --userversion ${{ github.ref_name }}
+          ./butler push \
+            ./dist/${{ env.projectname }}-html5.zip \
+            ${{ github.repository_owner }}/${{ env.projectname }}:html5 \
+            --userversion ${{ github.ref_name }}
+
+          ./butler push \
+            ./dist/${{ env.projectname }}.tic \
+            ${{ github.repository_owner }}/${{ env.projectname }}:tic \
+            --userversion ${{ github.ref_name }}
