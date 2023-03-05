@@ -14,6 +14,7 @@ env:
   scriptextension: moon
   projectname: whitch
   BUILD_TYPE: MinSizeRel
+  butlerversion: 15.21.0
 
 jobs:
   build:
@@ -27,7 +28,7 @@ jobs:
         uses: actions/cache@v3.2.6
         with:
           path: /usr/local/bin/tic80
-          key: tag-v${tic80version:?}.${tic80release:?}
+          key: tag-v${{ env.tic80version }}.${{ env.tic80release }}
           
       - if: ${{ steps.cache-tic80.outputs.cache-hit != 'true' }}
         name: Clone TIC-80 Github Repo
@@ -84,3 +85,25 @@ jobs:
           artifacts: ./dist/${{ env.projectname }}.tic
           token: ${{ secrets.GITHUB_TOKEN }}
           body: 'A [TIC-80](https://tic80.com/) cart.'
+      
+      - if: ${{ github.ref_type == 'tag' }}   
+        name: Download Butler
+        run: |
+          curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/${butlerversion:?}/archive/default
+          unzip butler.zip
+          # GNU unzip tends to not set the executable bit even though it's set in the .zip
+          chmod +x butler
+          # just a sanity check run (and also helpful in case you're sharing CI logs)
+          ./butler -V
+          
+      - if: ${{ github.ref_type == 'tag' }}   
+        name: Set Butler API Key
+        run: |
+          mkdir -p ~/.config/itch
+          echo ${{ secrets.BUTLER_API }} > ~/.config/itch/butler_creds
+          
+      - if: ${{ github.ref_type == 'tag' }}   
+        name: Push Cart to itch.io
+        run: |
+          #butler push ./dist/${{ env.projectname }}.html ${{ github.repository_owner }}/${projectname:?}:html5 --userversion ${{ github.ref_name }}
+          butler push ./dist/${{ env.projectname }}.tic ${{ github.repository_owner }}/${projectname:?}:tic --userversion ${{ github.ref_name }}
