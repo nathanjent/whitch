@@ -14,6 +14,7 @@ env:
   scriptextension: moon
   projectname: whitch
   BUILD_TYPE: MinSizeRel
+  butlerversion: 15.21.0
 
 jobs:
   build:
@@ -27,7 +28,7 @@ jobs:
         uses: actions/cache@v3.2.6
         with:
           path: /usr/local/bin/tic80
-          key: tag-v${tic80version:?}.${tic80release:?}
+          key: tag-v${{ env.tic80version }}.${{ env.tic80release }}
           
       - if: ${{ steps.cache-tic80.outputs.cache-hit != 'true' }}
         name: Clone TIC-80 Github Repo
@@ -70,17 +71,62 @@ jobs:
           
       - name: Compile cart with TIC-80
         run: |
-          tic80 --cli --fs . --cmd "load ${projectname:?}.${scriptextension:?} & mkdir dist & save dist/${projectname:?}"
+          tic80 --cli --fs . --cmd "load ${projectname:?}.${scriptextension:?} & mkdir dist & cd dist & save ${projectname:?} & export html ${projectname:?}-html5 --alone=1"
           
-      - name: Upload Artifacts
+      - name: Upload Cart Artifact
         uses: actions/upload-artifact@v3.1.2
         with:
-          name: ${{ env.projectname }} 
-          path: ./dist/*
+          name: ${{ env.projectname }}.tic
+          path: ./dist/*.tic
+
+      - name: Upload HTML5 Artifacts
+        uses: actions/upload-artifact@v3.1.2
+        with:
+          name: ${{ env.projectname }}-html5.zip
+          path: ./dist/*.zip
+
+  release:         
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref_type == 'tag'
+
+    steps:
+      - name: Dist directory
+        run: mkdir -p dist
+
+      - name: Download Cart Artifact
+        uses: actions/download-artifact@v3.0.2
+        with:
+          name: ${{ env.projectname }}.tic
+          path: ./dist/
+
+      - name: Download HTML5 Cart Artifact
+        uses: actions/download-artifact@v3.0.2
+        with:
+          name: ${{ env.projectname }}-html5.zip
+          path: ./dist/
           
-      - if: ${{ github.ref_type == 'tag' }}   
-        uses: ncipollo/release-action@v1
+      - uses: ncipollo/release-action@v1
         with:
           artifacts: ./dist/${{ env.projectname }}.tic
           token: ${{ secrets.GITHUB_TOKEN }}
           body: 'A [TIC-80](https://tic80.com/) cart.'
+      
+      - name: Download Butler
+        run: |
+          curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/${butlerversion:?}/archive/default
+          unzip butler.zip
+          # GNU unzip tends to not set the executable bit even though it's set in the .zip
+          chmod +x butler
+          # just a sanity check run (and also helpful in case you're sharing CI logs)
+          ./butler -V
+          
+      - name: Set Butler API Key
+        run: |
+          mkdir -p ~/.config/itch
+          echo ${{ secrets.BUTLER_API }} > ~/.config/itch/butler_creds
+          
+      - name: Push Cart to itch.io
+        run: |
+          butler push ./dist/${{ env.projectname }}-html5.zip ${{ github.repository_owner }}/${projectname:?}:html5 --userversion ${{ github.ref_name }}
+          butler push ./dist/${{ env.projectname }}.tic ${{ github.repository_owner }}/${projectname:?}:tic --userversion ${{ github.ref_name }}
