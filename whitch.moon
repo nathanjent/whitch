@@ -1,7 +1,7 @@
 -- title:   Whitch
 -- author:  GR8N8
--- desc:    short description
--- site:    website link
+-- desc:    Which witch is whitch?
+-- site:    https://nathanjent.itch.io/whitch
 -- license: MIT License
 -- version: 0.1
 -- script:  moon
@@ -126,7 +126,7 @@ class Player extends Behavior
 			actor.vel.y+=actor.acc.y
 
 		if actor.vel.y==0 and btnp 4
-			actor.vel.y=actor.vel_max.y
+			actor.vel.y=-actor.vel_max.y
 			actor.mode="jump"
 
 		if scene\hit_ceiling actor
@@ -173,6 +173,7 @@ class Actor extends Behavioral
 		@damage=1
 		@is_player=o.is_player
 		@hp=3
+		@debug=o.debug
 	-- called once per actor on first update
 	update:(game,scene)=>
 		if not @loaded
@@ -180,7 +181,7 @@ class Actor extends Behavioral
 			@loaded=true
 		super game,scene
 	draw:(game,scene)=>
-		if DEBUG
+		if @debug
 			x,y,w,h=@hitbox!
 			--trace "actor orig:#{@origin} pos:#{@pos}"
 			rectb x,y,w,h,11
@@ -216,10 +217,10 @@ class AnimValues
 					-- don't repeat one time actions
 					actor.mode="idle"
 			for k,v in pairs @anim_values
-				if "table" == type v
-					@[k]=v[@frame_cursor]
+				@[k]=if "table" == type v
+					v[@frame_cursor]
 				else if "function" == type v
-					@[k]=v game,@[k],@frame_cursor
+					v game,@[k],@frame_cursor
 			frame_hold=@frame_holds[@frame_cursor]
 			if frame_hold
 				@frame_next_tic=game.t+frame_hold
@@ -229,8 +230,7 @@ class Sprite extends AnimValues
 	new:(o={})=>
 		super o
 		@id=o.id or 0
-		@x=0
-		@y=0
+		@pos=Vec!
 		@colorkey=o.colorkey or -1
 		@w=o.w or 1
 		@h=o.h or 1
@@ -245,38 +245,43 @@ class Sprite extends AnimValues
 		-- apply flip to original flip
 		p=parent or actor
 		@cur_flip=xor p.flip,@flip
-		pos=p.origin+p.pos
-		@x=pos.x
-		@y=pos.y
+		@pos=p.origin+p.pos
 	draw:(game,scene,actor,parent)=>
 		-- center origin
 		spr @id,
-			@x-@w*4,@y-@h*4,
+			@pos.x-@w*4,@pos.y-@h*4,
 			@colorkey,
 			@scale,
 			@cur_flip,
 			@rotate,
 			@w,@h
 		if @debug
-			print @,@x+@w*4,@y+@h*4,5,false,1,1
+			print @,@pos.x+@w*4,@pos.y+@h*4,5,false,1,1
 	__tostring:=>
-		"id: #{@id} x:#{@x} y:#{@y} z:#{@z_index} flip:#{@cur_flip}"
+		"id: #{@id} x:#{@pos.x} y:#{@pos.y} z:#{@z_index} flip:#{@cur_flip}"
 
-class SpriteSet extends Sprite
+class SpriteSet extends AnimValues
 	new:(o={})=>
 		super o
+		@x=o.x or 0
+		@y=o.y or 0
 		@pos=o.pos or Vec o.x,o.y
 		@origin=Vec!
 		@sprites=o.sprites or {}
-		assert all_type @sprites,Sprite
+		@z_index=o.z_index or 0
+		@flip=0
+		@debug=o.debug
+		--assert all_type @sprites,Sprite
 	update:(game,scene,actor,parent)=>
-		-- FIXME calling super here breaks flipping position of sprites below
 		super game,scene,actor,parent
 		p=parent or actor
-		@origin=p.origin+p.pos
 		if @flip != p.flip
 			@flip=p.flip
-			@pos=Vec @pos.x*-1,@pos.y
+		@pos=if @flip == 1
+			Vec -@x,@y
+		else
+			Vec @x,@y
+		@origin=p.origin+p.pos
 		table.sort @sprites,comp 'z_index'
 		for s in *@sprites
 			s\update game,scene,actor,@
@@ -415,21 +420,6 @@ class Game
 					@camera.shake=false
 
 export BOOT=->
-	waist1=Sprite
-		id:352
-		w:2
-		h:2
-		colorkey:9
-	waist2=Sprite
-		id:354
-		w:2
-		h:2
-		colorkey:9
-	waist3=Sprite
-		id:354
-		w:2
-		h:2
-		colorkey:9
 	foot_up=Sprite
 		id:418
 		colorkey:9
@@ -463,16 +453,6 @@ export BOOT=->
 	wand_90=Sprite
 		id:339
 		colorkey:9
-	fireball_2=Sprite
-		id:466
-		w:2
-		colorkey:9
-	fireball_3=Sprite
-		id:452
-		colorkey:9
-	fireball_4=Sprite
-		id:468
-		colorkey:9
 
 	player=ModalActor
 		w:11
@@ -482,7 +462,7 @@ export BOOT=->
 		ax:0.1
 		ay:0.2
 		vx_max:1.3
-		vy_max:-3.1
+		vy_max:3.1
 		behaviors:{ Player! }
 		modes:{}
 
@@ -491,54 +471,54 @@ export BOOT=->
 			x:-1
 			y:2
 			sprites:{
-				waist1
+				Sprite
+					anim_values:
+						id:{352,354}
+						flip:{0,1}
+					frame_holds:{12,12}
+					w:2
+					h:2
+					colorkey:9
 				SpriteSet
 					z_index:-1
 					anim_values:
-						pos:{
-							Vec -2,9
-						}
+						x:{-2}
+						y:{9}
 					frame_holds:{12}
 					sprites:{foot_back}
 				SpriteSet
 					z_index:-1
 					anim_values:
-						pos:{
-							Vec 5,9
-						}
+						x:{5}
+						y:{9}
 					frame_holds:{12}
 					sprites:{foot_lift}
 				SpriteSet
 					z_index:-1
 					anim_values:
-						pos:{
-							Vec 6,-3
-						}
+						x:{6}
+						y:{-3}
 					frame_holds:{12}
 					sprites:{
 						fist_up
 						SpriteSet
+							--debug:true
 							z_index:2
 							anim_values:
-								pos:{
-									Vec 4,-6
-								}
+								x:{4}
+								y:{-6}
 							frame_holds:{12}
 							sprites:{
 								wand_60
 								SpriteSet
+									--debug:true
 									z_index:1
-									debug:true
 									anim_values:
-										pos:{
-											Vec 3,-12
-											Vec 4,-6
-											Vec -2,-6
-											Vec -1,-12
-										}
+										x:{ 6, 5,1,2}
+										y:{-9,-5,-6,-10}
 									frame_holds:{6,6,6,6}
 									sprites:{
-										Sprite
+										Sprite --fireball
 											anim_values:
 												id:{450,452,466,468}
 												w:{2,1,2,1}
@@ -550,18 +530,13 @@ export BOOT=->
 				SpriteSet
 					z_index:3
 					anim_values:
-						pos:{
-							Vec -6,3
-						}
+						x:{-6}
+						y:{3}
 					frame_holds:{12}
 					sprites:{hand_up}
 				SpriteSet
 					z_index:5
-					anim_values:
-						pos:{
-							Vec 0,-6
-						}
-					frame_holds:{12}
+					y:-6
 					sprites:{
 						Sprite --head
 							id:416
@@ -570,25 +545,22 @@ export BOOT=->
 							colorkey:9
 						SpriteSet
 							z_index:-1
-							anim_values:
-								pos:{
-									Vec -2,-4
-								}
-							frame_holds:{12}
+							x:-2
+							y:-4
 							sprites:{
 								Sprite --hat
 									id:384
 									w:3
 									h:2
 									colorkey:9
-									debug:true
+									--debug:true
 							}
 					}
 			}
 
-	player.modes.walk=Mode!
+	player.modes.walk=player.modes.idle
 
-	player.modes.jump=Mode!
+	player.modes.jump=player.modes.idle
 
 	export game=Game
 		scenes:{
