@@ -72,6 +72,7 @@ jobs:
       - name: Compile cart with TIC-80
         uses: nick-fields/retry@v2.8.3
         with:
+          timeout_minutes: 2
           command: |
             tic80 \
               --cli \
