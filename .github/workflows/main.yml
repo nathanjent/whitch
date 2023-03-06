@@ -71,7 +71,13 @@ jobs:
           
       - name: Compile cart with TIC-80
         run: |
-          tic80 --cli --fs . --cmd "load ${projectname:?}.${scriptextension:?} & mkdir dist & cd dist & save ${projectname:?} & export html ${projectname:?}-html5 --alone=1"
+          tic80 \
+            --cli \
+            --fs . \
+            --cmd "load ${projectname:?}.${scriptextension:?} & mkdir dist & cd dist & save ${projectname:?} & export html ${projectname:?}-html5 --alone=1" | tee tic.log
+          if [[ $(cat ./tic.log) == "*error*" ]]; then
+            exit 1
+          fi
           
       - name: Upload Cart Artifact
         uses: actions/upload-artifact@v3.1.2
