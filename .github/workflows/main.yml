@@ -74,8 +74,8 @@ jobs:
           tic80 \
             --cli \
             --fs . \
-            --cmd "load ${projectname:?}.${scriptextension:?} & mkdir dist & cd dist & save ${projectname:?} & export html ${projectname:?}-html5 --alone=1" | tee tic.log
-          if [[ $(cat ./tic.log) == "*error*" ]]; then
+            --cmd "load ${projectname:?}.${scriptextension:?} & mkdir dist & cd dist & save ${projectname:?} & export html ${projectname:?}-html5 --alone=1" | tee tic.log          
+          if [[ $(cat ./tic.log) == *"error"* ]]; then
             exit 1
           fi
           
