@@ -225,6 +225,46 @@ class AnimValues
 			if frame_hold
 				@frame_next_tic=game.t+frame_hold
 			@frame_cursor+=1
+	__tostring:=>
+		s=""
+		for k,v in pairs @anim_values
+			@[k]=if "table" == type v
+				s="#{s} #{k}:#{@[k]}"
+		s
+
+class Wand extends AnimValues
+	new:(o={})=>
+		super o
+		@p1=o.p1 or Vec o.x1 or 0,o.y1 or 0
+		@p2=o.p2 or Vec o.x2 or 0,o.y2 or 0
+		@color=o.color or 0
+		@z_index=o.z_index or 0
+		@debug=o.debug
+		@visible=true
+	update:(game,scene,actor,parent)=>
+		super game,scene,actor,parent
+		p=parent or actor
+		if @flip != p.flip
+			@flip=p.flip
+		pos=p.origin+p.pos
+		if @flip == 1
+			@p1=pos+Vec -@x1,@x1
+			@p2=pos+Vec -@x2,@y2
+			@p3=pos+Vec -@x1-1,@x1
+			@p4=pos+Vec -@x2-1,@y2
+		else
+			@p1=pos+Vec @x1,@x1
+			@p2=pos+Vec @x2,@y2
+			@p3=pos+Vec @x1+1,@x1
+			@p4=pos+Vec @x2+1,@y2
+	draw:(game,scene,actor,parent)=>
+		if @visible
+			line @p1.x,@p1.y,@p2.x,@p2.y,@color
+			line @p3.x,@p3.y,@p4.x,@p4.y,@color-1
+		if @debug
+			print @,@p1.x+10,@p1.y+10,5,false,1,1
+	__tostring:=>
+		"#{@p1} #{@p2} #{super\__tostring!}"
 
 class Sprite extends AnimValues
 	new:(o={})=>
@@ -240,6 +280,7 @@ class Sprite extends AnimValues
 		@cur_flip=0
 		@rotate=o.rotate or 0
 		@debug=o.debug
+		@visible=true
 	update:(game,scene,actor,parent)=>
 		super game,scene,actor,parent
 		-- apply flip to original flip
@@ -247,14 +288,15 @@ class Sprite extends AnimValues
 		@cur_flip=xor p.flip,@flip
 		@pos=p.origin+p.pos
 	draw:(game,scene,actor,parent)=>
-		-- center origin
-		spr @id,
-			@pos.x-@w*4,@pos.y-@h*4,
-			@colorkey,
-			@scale,
-			@cur_flip,
-			@rotate,
-			@w,@h
+		if @visible
+			-- center origin
+			spr @id,
+				@pos.x-@w*4,@pos.y-@h*4,
+				@colorkey,
+				@scale,
+				@cur_flip,
+				@rotate,
+				@w,@h
 		if @debug
 			print @,@pos.x+@w*4,@pos.y+@h*4,5,false,1,1
 	__tostring:=>
@@ -265,7 +307,7 @@ class SpriteSet extends AnimValues
 		super o
 		@x=o.x or 0
 		@y=o.y or 0
-		@pos=o.pos or Vec o.x,o.y
+		@pos=o.pos or Vec @x,@y
 		@origin=Vec!
 		@sprites=o.sprites or {}
 		@z_index=o.z_index or 0
@@ -509,7 +551,22 @@ export BOOT=->
 								y:{-6}
 							frame_holds:{12}
 							sprites:{
-								wand_60
+								SpriteSet
+									z_index:-1
+									anim_values:
+										x:{-2}
+										y:{3}
+									frame_holds:{12}
+									sprites: {
+										Wand
+											color:3
+											anim_values:
+												x1:{0}
+												y1:{0}
+												x2:{4}
+												y2:{-9}
+											frame_holds:{12}
+									}
 								SpriteSet
 									--debug:true
 									z_index:1
