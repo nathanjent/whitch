@@ -7,7 +7,7 @@
 -- script:  moon
 -- palette: https://lospec.com/palette-list/graveyard-mist
 
-DEBUG=false
+DEBUG=true
 
 -- not sure why MoonScript doesn't support xor operator
 xor=(a,b)->(a|b)-(a&b)
@@ -181,7 +181,7 @@ class Actor extends Behavioral
 			@loaded=true
 		super game,scene
 	draw:(game,scene)=>
-		if @debug
+		if @debug and DEBUG
 			x,y,w,h=@hitbox!
 			--trace "actor orig:#{@origin} pos:#{@pos}"
 			rectb x,y,w,h,11
@@ -235,12 +235,10 @@ class AnimValues
 class Wand extends AnimValues
 	new:(o={})=>
 		super o
-		@p1=o.p1 or Vec o.x1 or 0,o.y1 or 0
-		@p2=o.p2 or Vec o.x2 or 0,o.y2 or 0
 		@color=o.color or 0
 		@z_index=o.z_index or 0
 		@debug=o.debug
-		@visible=true
+		@hide=o.hide
 	update:(game,scene,actor,parent)=>
 		super game,scene,actor,parent
 		p=parent or actor
@@ -248,21 +246,24 @@ class Wand extends AnimValues
 			@flip=p.flip
 		pos=p.origin+p.pos
 		if @flip == 1
-			@p1=pos+Vec -@x1,@x1
+			@p1=pos+Vec -@x1,@y1
 			@p2=pos+Vec -@x2,@y2
-			@p3=pos+Vec -@x1-1,@x1
+			@p3=pos+Vec -@x1-1,@y1
 			@p4=pos+Vec -@x2-1,@y2
 		else
-			@p1=pos+Vec @x1,@x1
+			@p1=pos+Vec @x1,@y1
 			@p2=pos+Vec @x2,@y2
-			@p3=pos+Vec @x1+1,@x1
+			@p3=pos+Vec @x1+1,@y1
 			@p4=pos+Vec @x2+1,@y2
+		@hide=@hide or p.hide
 	draw:(game,scene,actor,parent)=>
-		if @visible
+		if not @hide
 			line @p1.x,@p1.y,@p2.x,@p2.y,@color
 			line @p3.x,@p3.y,@p4.x,@p4.y,@color-1
-		if @debug
+		if @debug and DEBUG
 			print @,@p1.x+10,@p1.y+10,5,false,1,1
+			pix @p1.x,@p1.y,11
+			pix @p2.x,@p2.y,10
 	__tostring:=>
 		"#{@p1} #{@p2} #{super\__tostring!}"
 
@@ -280,15 +281,16 @@ class Sprite extends AnimValues
 		@cur_flip=0
 		@rotate=o.rotate or 0
 		@debug=o.debug
-		@visible=true
+		@hide=o.hide
 	update:(game,scene,actor,parent)=>
 		super game,scene,actor,parent
 		-- apply flip to original flip
 		p=parent or actor
 		@cur_flip=xor p.flip,@flip
 		@pos=p.origin+p.pos
+		@hide=@hide or p.hide
 	draw:(game,scene,actor,parent)=>
-		if @visible
+		if not @hide
 			-- center origin
 			spr @id,
 				@pos.x-@w*4,@pos.y-@h*4,
@@ -297,7 +299,7 @@ class Sprite extends AnimValues
 				@cur_flip,
 				@rotate,
 				@w,@h
-		if @debug
+		if @debug and DEBUG
 			print @,@pos.x+@w*4,@pos.y+@h*4,5,false,1,1
 	__tostring:=>
 		"id: #{@id} x:#{@pos.x} y:#{@pos.y} z:#{@z_index} flip:#{@cur_flip}"
@@ -313,6 +315,7 @@ class SpriteSet extends AnimValues
 		@z_index=o.z_index or 0
 		@flip=0
 		@debug=o.debug
+		@hide=o.hide
 		--assert all_type @sprites,Sprite
 	update:(game,scene,actor,parent)=>
 		super game,scene,actor,parent
@@ -324,13 +327,14 @@ class SpriteSet extends AnimValues
 		else
 			Vec @x,@y
 		@origin=p.origin+p.pos
+		@hide=@hide or p.hide
 		table.sort @sprites,comp 'z_index'
 		for s in *@sprites
 			s\update game,scene,actor,@
 	draw:(game,scene,actor,parent)=>
 		for s in *@sprites
 			s\draw game,scene,actor,@
-		if @debug
+		if @debug and DEBUG
 			--pix @origin.x,@origin.y,4
 			--circb @origin.x,@origin.y,2,4
 			--trace "set o:#{@origin} p:#{@pos}"
@@ -462,41 +466,24 @@ class Game
 					@camera.shake=false
 
 export BOOT=->
-	foot_up=Sprite
-		id:418
-		colorkey:9
-	foot_down=Sprite
-		id:419
-		colorkey:9
-	foot_back=Sprite
-		id:434
-		colorkey:9
-	foot_lift=Sprite
-		id:435
-		colorkey:9
-	hand_up=Sprite
-		id:320
-		colorkey:9
-	hand_down=Sprite
-		id:336
-		colorkey:9
-	fist_up=Sprite
-		id:321
-		colorkey:9
-	fist_down=Sprite
-		id:337
-		colorkey:9
-	wand_60=Sprite
-		id:338
-		colorkey:9
-	wand_45=Sprite
-		id:332
-		colorkey:9
-	wand_90=Sprite
-		id:339
-		colorkey:9
+	fireball=SpriteSet
+		--debug:true
+		z_index:1
+		anim_values:
+			x:{ 6, 5,1,2}
+			y:{-17,-12,-9,-20}
+		frame_holds:{6,6,6,6}
+		sprites:{
+			Sprite --fireball
+				anim_values:
+					id:{450,452,466,468}
+					w:{2,1,2,1}
+				frame_holds:{6,6,6,6}
+				colorkey:9
+		}
 
 	player=ModalActor
+		--debug:true
 		w:11
 		h:22
 		x:100
@@ -510,87 +497,77 @@ export BOOT=->
 
 	player.modes.idle=Mode
 		sprite:SpriteSet
-			x:-1
-			y:2
+			anim_values:
+				x:{-1,-1,-2,-2,-2,-1}
+				y:{ 1, 0, 0, 1, 1, 1}
+			frame_holds:{12,12,12,12,12,12}
 			sprites:{
-				Sprite
+				Sprite -- dress
 					anim_values:
-						id:{352,354}
-						flip:{0,1}
-					frame_holds:{12,12}
+						id:  {352,354,354,352,354}
+						flip:{  0,  0,  0,  0,  1}
+					frame_holds:{24,12,12,12,12}
 					w:2
 					h:2
 					colorkey:9
 				SpriteSet
 					z_index:-1
 					anim_values:
-						x:{-2}
-						y:{9}
-					frame_holds:{12}
-					sprites:{foot_back}
-				SpriteSet
-					z_index:-1
-					anim_values:
-						x:{5}
-						y:{9}
-					frame_holds:{12}
-					sprites:{foot_lift}
-				SpriteSet
-					z_index:-1
-					anim_values:
-						x:{6}
-						y:{-3}
-					frame_holds:{12}
+						x:{6,6,5,5,6,6}
+						y:{-3,-2,-2,-2,-3,-3}
+					frame_holds:{12,12,12,12,12,12}
 					sprites:{
-						fist_up
+						Sprite -- arm back
+							anim_values:
+								id:{322,323,321}
+							frame_holds:{36,12,24}
+							colorkey:9
 						SpriteSet
-							--debug:true
+							z_index:1
+							anim_values:
+								x:{5,5,5,4,4,5}
+								y:{-7,-6,-6,-5,-5,-7}
+							frame_holds:{12,12,12,12,12,12}
+							sprites:{
+								Sprite
+									anim_values:
+										id:{338,340}
+									frame_holds:{48,24}
+									colorkey:9
+							}
+						--Wand
+						--	z_index:1
+						--	debug:true
+						--	hide: true
+						--	color:3
+						--	anim_values:
+						--		x1:{1,1,1,1,1,1}
+						--		y1:{-2,-2,-2,-2,-2,-2}
+						--		x2:{9,9,9,9,9,9}
+						--		y2:{-9,-9,-9,-9,-9,-9}
+						--	frame_holds:{12,12,12,12,12,12}
+						SpriteSet
+							hide:true
 							z_index:2
 							anim_values:
 								x:{4}
 								y:{-6}
 							frame_holds:{12}
 							sprites:{
-								SpriteSet
-									z_index:-1
-									anim_values:
-										x:{-2}
-										y:{3}
-									frame_holds:{12}
-									sprites: {
-										Wand
-											color:3
-											anim_values:
-												x1:{0}
-												y1:{0}
-												x2:{4}
-												y2:{-9}
-											frame_holds:{12}
-									}
-								SpriteSet
-									--debug:true
-									z_index:1
-									anim_values:
-										x:{ 6, 5,1,2}
-										y:{-9,-5,-6,-10}
-									frame_holds:{6,6,6,6}
-									sprites:{
-										Sprite --fireball
-											anim_values:
-												id:{450,452,466,468}
-												w:{2,1,2,1}
-											frame_holds:{6,6,6,6}
-											colorkey:9
-									}
+								fireball
 							}
 					}
 				SpriteSet
 					z_index:3
 					anim_values:
-						x:{-6}
-						y:{3}
-					frame_holds:{12}
-					sprites:{hand_up}
+						x:{-6,-5,-6}
+						y:{3,4,3}
+					frame_holds:{24,24,24}
+					sprites:{
+						Sprite -- arm front
+							id:320
+							colorkey:9
+					}
 				SpriteSet
 					z_index:5
 					y:-6
@@ -612,6 +589,28 @@ export BOOT=->
 									colorkey:9
 									--debug:true
 							}
+					}
+				SpriteSet
+					z_index:-1
+					anim_values:
+						x:{-2,-2,-2,-2,-2,-2}
+						y:{ 9, 10, 10, 9, 9, 9}
+					frame_holds:{12,12,12,12,12,12}
+					sprites:{
+						Sprite -- foot front
+							id:434
+							colorkey:9
+					}
+				SpriteSet
+					z_index:-2
+					anim_values:
+						x:{3,3,4,4,4,3}
+						y:{9,10,10,9,9,9}
+					frame_holds:{12,12,12,12,12,12}
+					sprites:{
+						Sprite -- foot back
+							id:435
+							colorkey:9
 					}
 			}
 
@@ -668,12 +667,13 @@ export TIC=->
 -- 049:5555545055555450555555455555554555555545555544454444455055555000
 -- 064:9999991099999100919910001c1150001cc1500191c130199911119999999999
 -- 065:9999911999991cc19991ccc199151cc191055119100031990000199900019999
--- 066:99999919999991e199991ed19991ed19991ed19991ed19991ed19999ed199999
--- 067:9999999999999999999999999999999999999999999999999999999999999999
+-- 066:999911999991cc19991ccc199151cc1910551199100419990001999900019999
+-- 067:999999999999911999991cc199111cc111051cc1000311190001999901199999
 -- 080:919999991c1999991cc111111cc1500011c13000991111119999999999999999
 -- 081:99999999999999991111111900051cc100031cc111111cc19999911999999999
--- 082:9999919999991e199991ed199991e199991ed199991e199991ed199991e19999
--- 083:99919999991e1999991e1999991e1999991e1999991e1999991e1999991e1999
+-- 082:99999929999992d299992de19992de19992de19992de19992de19999de199999
+-- 083:99999999999999999999922999922de1922de1192de11999e119999919999999
+-- 084:999929999992d1999992e199992d1999992e199992d1999992e199992e199999
 -- 096:9999999999999999999999999999999999999999999999119999910099999100
 -- 097:9999999999999999999999999999999999999999119999990019999900199999
 -- 098:9999999999999999999999999999999999999999999999119999910099999100
@@ -710,6 +710,16 @@ export TIC=->
 -- 210:99999999999cccc999ccbbcc9ccbbbbc9cbbbbbd9ccbbbbb99ccbbdc999ccccc
 -- 211:99999999999999c9999c9c99cccdcc99cdbbc999dcccc999ccc9999999999999
 -- 212:99ccc9999ccbbc99ccbdbbc9cdbbbbc9ccbdbc99ccdcc9999cccdc9c999cccc9
+-- 224:999999999999999999999999999999999999999999999999999999929999992d
+-- 225:999999999999999999929999992d299992de19992de19999de199999e1999999
+-- 226:9999999999999999999999999999999999999999999999999999999999999999
+-- 227:9999999999999999999999999999999999999999999999999999999999999999
+-- 228:9999999999999999999999999999999999999999999999999999999999999999
+-- 240:999992de99992ce19992ccc199251cc192055119200031990000199900019999
+-- 241:1999999999999999999999999999999999999999999999999999999999999999
+-- 242:9999999999999999999999999999999999999999999999999999999999999999
+-- 243:9999999999999999999999999999999999999999999999999999999999999999
+-- 244:9999999999999999999999999999999999999999999999999999999999999999
 -- </SPRITES>
 
 -- <MAP>
