@@ -1,13 +1,18 @@
 [package]
-name = "agb_template"
+name = "whitch"
 version = "0.1.0"
-authors = [""]
-edition = "2018"
+authors = ["Nathan Jent"]
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-agb = "0.12.1"
+agb = "0.13.0"
+generational-arena = { version = "0.2", default-features = false }
+
+[build-dependencies]
+quote = "1.0.10"
+tiled = { version = "0.9.4", default-features = false }
 
 [profile.dev]
 opt-level = 2
@@ -17,3 +22,4 @@ debug = true
 panic = "abort"
 lto = true
 debug = true
+codegen-units = 1

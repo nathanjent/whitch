@@ -1,0 +1,6 @@
+version = "1.0"
+transparent_color = "ff00ff"
+
+[image.tiles]
+filename = "tiles.png"
+tile_size = "8x8"
