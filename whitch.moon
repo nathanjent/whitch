@@ -39,9 +39,7 @@ all=(l,f)->
 all_type=(l,t)->all l,(i)->istype i,t
 
 class Vec
-	new:(x=0,y=0)=>
-		@x=x
-		@y=y
+	new:(@x=0,@y=0)=>
 	__add:(v)=>@_apply v,(a,b)->a+b
 	__sub:(v)=>@_apply v,(a,b)->a-b
 	__div:(v)=>@_apply v,(a,b)->a/b
@@ -108,12 +106,7 @@ class Player extends Behavior
 			if actor.mode=="idle"
 				actor.mode="walk"
 		if vx==actor.vel.x
-			if actor.vel.x>0.5
-				actor.vel.x-=actor.acc.x
-			else if actor.vel.x<-0.5
-				actor.vel.x+=actor.acc.x
-			else
-				actor.vel.x=0
+			actor.vel.x=lerp actor.vel.x,0,actor.acc.x
 
 		if scene\hit_wall actor
 			actor.vel.x=0
@@ -135,8 +128,7 @@ class Player extends Behavior
 		if actor.vel.x==0 and actor.vel.y==0
 			actor.mode="idle"
 
-		actor.pos.x+=actor.vel.x
-		actor.pos.y+=actor.vel.y
+		actor.pos+=actor.vel
 
 		super game,scene,actor
 
@@ -451,9 +443,6 @@ class Game
 			cls!
 			print "You are dead.",64,84,1,false,2
 		@camera_shake!
-	add_scene:(s)=>
-		assert istype s,Scene
-		table.insert @scenes,s
 	camera_shake:=>
 		if @camera.shake
 			if @shake>0
@@ -695,10 +684,10 @@ export TIC=->
 -- 160:9999999999999999999999dd99999ddc9999ddcc999ddcce999edce5999edce5
 -- 161:9999999999999999dede9999cdcde999ccccde99eceecd998c58ed995c55ed99
 -- 162:3551999913551999913551999913519999910019999100199999119999999999
--- 163:1355199911551999913511999135519991135199991001999910019999911999
+-- 163:1351999911551999913519999135519999135199991001999910019999911999
 -- 176:999edccc999edccf9999edcd99999ecc9999999c999999999999999999999999
 -- 177:ccdccd99ffcccd99dfcce999ccc99999c9999999999999999999999999999999
--- 178:9991351999135519991351999135519991351999100199991001999991199999
+-- 178:9991355199135519991351999135519991351999100199991001999991199999
 -- 179:1351999913519999135199991351999913519999100199991001999991199999
 -- 192:00cccccc0cceeecccceccccccccccccccceeeeccce5765ecce5775ecce5555cc
 -- 193:ccccc000ceeecc00ccccecc0ccccccc0ceeeeccce5765ecce5775eccc5555ecc
