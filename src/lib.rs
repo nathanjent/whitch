@@ -6,23 +6,25 @@
 
 extern crate alloc;
 
+mod player;
+
 use alloc::boxed::Box;
 use core::iter::zip;
 
 use agb::{
     display::{
         self,
-        object::ObjectController,
+        object::OamManaged,
         tiled::{InfiniteScrolledMap, TileFormat, TileSet, TileSetting, VRamManager},
     },
-    fixnum::{FixedNum, Vector2D},
-    include_gfx,
+    include_background_gfx,
     input::ButtonController,
     interrupt, Gba,
 };
 
-include_gfx!("gfx/sprites.toml");
-include_gfx!("gfx/tiles.toml");
+use player::Player;
+
+include_background_gfx!(background, "ff00ff", bg => "gfx/bg.png");
 
 mod tilemap {
     include!(concat!(env!("OUT_DIR"), "/tilemap.rs"));
@@ -40,25 +42,11 @@ enum GameState {
     Respawn,
 }
 
-struct Player<'a> {
-    object_controller: &'a ObjectController,
-    position: Vector2D<FixedNum<8>>,
-}
-
-impl<'a> Player<'a> {
-    fn new(object_controller: &'a ObjectController) -> Self {
-        Self {
-            object_controller,
-            position: (0, 0).into(),
-        }
-    }
-}
-
 impl<'a> Game<'a> {
-    fn new(object_controller: &'a ObjectController, respawn: bool) -> Self {
+    fn new(object_controller: &'a OamManaged<'a>, respawn: bool) -> Self {
         let mut player = Player::new(&object_controller);
         if respawn {
-            player.position = (8, 8).into();
+            player.position = (8u16, 8u16).into();
         }
 
         Self {
@@ -67,12 +55,12 @@ impl<'a> Game<'a> {
         }
     }
 
-    fn next(
-        &mut self,
-        object_controller: &'a ObjectController,
-        vram: &mut VRamManager,
-    ) -> GameState {
+    fn next(&mut self, object_controller: &'a OamManaged, vram: &mut VRamManager) -> GameState {
         GameState::Continue
+    }
+
+    fn update(&mut self) {
+        self.player.update();
     }
 }
 
@@ -81,25 +69,27 @@ pub fn game_with_level(gba: &mut Gba) {
     vblank.wait_for_vblank();
 
     let mut respawn = false;
+    let object_controller = gba.display.object.get_managed();
+
+    let mut game = Game::new(&object_controller, respawn);
 
     loop {
         let (bg, mut vram) = gba.display.video.tiled0();
-        vram.set_background_palettes(tiles::PALETTES);
+        vram.set_background_palettes(background::PALETTES);
 
-        let tileset = TileSet::new(tiles::tiles.tiles, TileFormat::FourBpp);
+        let bg_tileset = TileSet::new(background::bg.tiles, TileFormat::FourBpp);
 
-        let object_controller = gba.display.object.get();
-
-        let mut game = Game::new(&object_controller, respawn);
+        game.update();
 
         let mut background = InfiniteScrolledMap::new(
             bg.background(
                 display::Priority::P2,
                 display::tiled::RegularBackgroundSize::Background32x32,
+                TileFormat::FourBpp,
             ),
             Box::new(|pos| {
                 (
-                    &tileset,
+                    &bg_tileset,
                     TileSetting::from_raw(
                         *tilemap::BACKGROUND_MAP
                             .get((pos.x + tilemap::WIDTH * pos.y) as usize)

@@ -3,13 +3,29 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "",
+    "activeFile": "tilemaps/bg.tsx",
     "expandedProjectPaths": [
+        ".",
+        "tilemaps"
     ],
+    "file.lastUsedOpenFilter": "All Files (*)",
     "fileStates": {
         "": {
             "scaleInDock": 5.5,
             "scaleInEditor": 1
+        },
+        "tilemaps/bg.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 3,
+            "scaleInEditor": 8
+        },
+        "tilemaps/level1.tmx": {
+            "scale": 4,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 131.75,
+                "y": 128
+            }
         },
         "tilemaps/tiles.tsx": {
             "dynamicWrapping": true,
@@ -41,20 +57,24 @@
         }
     },
     "last.imagePath": "/home/njent/git/whitch/gfx",
-    "map.height": 32,
+    "map.height": 1024,
     "map.lastUsedFormat": "tmx",
-    "map.layerDataFormat": null,
+    "map.layerDataFormat": "4",
     "map.tileHeight": 8,
     "map.tileWidth": 8,
-    "map.width": 32,
+    "map.width": 1024,
     "openFiles": [
+        "tilemaps/bg.tsx",
+        "tilemaps/level1.tmx"
     ],
     "project": "whitch.tiled-project",
     "property.type": "bool",
     "recentFiles": [
+        "tilemaps/level1.tmx",
+        "tilemaps/bg.tsx",
+        "tilemaps/tiles.tsx",
         "tilemaps/volcanosaur.tmx",
-        "tilemaps/untitled.tmx",
-        "tilemaps/tiles.tsx"
+        "tilemaps/untitled.tmx"
     ],
     "tileset.embedInMap": false,
     "tileset.lastUsedFormat": "tsx",
@@ -62,5 +82,6 @@
         "height": 8,
         "width": 8
     },
-    "tileset.type": 0
+    "tileset.type": 0,
+    "tileset.useTransparentColor": true
 }

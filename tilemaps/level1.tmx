@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.10.1" orientation="orthogonal" renderorder="right-down" width="32" height="32" tilewidth="8" tileheight="8" infinite="0" nextlayerid="3" nextobjectid="6">
- <tileset firstgid="1" source="tiles.tsx"/>
+ <tileset firstgid="1" source="bg.tsx"/>
  <layer id="1" name="bg" width="32" height="32">
   <data encoding="base64" compression="zlib">
-   eJzt0rEKACAIRVFxKKL//99waM5AecsdznzloZuZAyLjYTb3V0LnHZl+2OL+3aHaT1/5p+o+AAAAUOEAs8AJsg==
+   eJxjZGBgYBzFo3iEYmUoZkZigzALne0nhJHdR0234bPTGQ+fWm5At9OFgHonAm6GuYuJQLjB5KkVjoTchQsPdPofxaN4FI/iUTyKR/EoHsUjCwMABKAM8w==
   </data>
  </layer>
  <objectgroup id="2" name="bats" class="Bat Spawns">
