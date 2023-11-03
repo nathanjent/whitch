@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.10.1" orientation="orthogonal" renderorder="right-down" width="32" height="32" tilewidth="8" tileheight="8" infinite="0" nextlayerid="3" nextobjectid="6">
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="32" height="32" tilewidth="8" tileheight="8" infinite="0" nextlayerid="4" nextobjectid="6">
  <tileset firstgid="1" source="bg.tsx"/>
- <layer id="1" name="bg" width="32" height="32">
+ <layer id="1" name="bg" width="32" height="32" locked="1">
   <data encoding="base64" compression="zlib">
    eJxjZGBgYBzFo3iEYmUoZkZigzALne0nhJHdR0234bPTGQ+fWm5At9OFgHonAm6GuYuJQLjB5KkVjoTchQsPdPofxaN4FI/iUTyKR/EoHsUjCwMABKAM8w==
+  </data>
+ </layer>
+ <layer id="3" name="ground" width="32" height="32">
+  <data encoding="base64" compression="zlib">
+   eJztUrkNwzAMZJPY3kKNE3gLNSm8hUbxKBpFo3iU3ElHIFWApAgQgAcQPNN8zqTNAoFAwGwxK7PZcQW/wP9i5mpWOXMzO3f4O2I38AnxdzqZf5VW9Ejk32jGrIqZDVZvw06YPcCXl3mukXqpEzmFeahLrGfdQzmzvoscVrwP9CV818F31ExTnywNSdZj7DcNLczL0pq1o0OcscNr2e8lp+uDXqOOXZpVS95cu2sgVy37mbhra5pxqj75rPuI+f24x6SejGfV+J6b6rkL3rGt4+aNHForfEasTPJ8Zpw5jM3DOkc8bWOfRb14r95TNT1fvvffxg3OT/+XQCAQCAQCgX/HE1MtULM=
   </data>
  </layer>
  <objectgroup id="2" name="bats" class="Bat Spawns">

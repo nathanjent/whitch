@@ -3,7 +3,7 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "tilemaps/bg.tsx",
+    "activeFile": "tilemaps/level1.tmx",
     "expandedProjectPaths": [
         ".",
         "tilemaps"
@@ -20,11 +20,11 @@
             "scaleInEditor": 8
         },
         "tilemaps/level1.tmx": {
-            "scale": 4,
-            "selectedLayer": 0,
+            "scale": 5.5,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 131.75,
-                "y": 128
+                "x": 73.72727272727273,
+                "y": 173.72727272727272
             }
         },
         "tilemaps/tiles.tsx": {
@@ -64,15 +64,14 @@
     "map.tileWidth": 8,
     "map.width": 1024,
     "openFiles": [
-        "tilemaps/bg.tsx",
         "tilemaps/level1.tmx"
     ],
     "project": "whitch.tiled-project",
     "property.type": "bool",
     "recentFiles": [
+        "tilemaps/tiles.tsx",
         "tilemaps/level1.tmx",
         "tilemaps/bg.tsx",
-        "tilemaps/tiles.tsx",
         "tilemaps/volcanosaur.tmx",
         "tilemaps/untitled.tmx"
     ],

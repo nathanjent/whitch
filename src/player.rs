@@ -1,5 +1,5 @@
 use agb::display::object::Object;
-use agb::input::{self, Button, ButtonController};
+use agb::input::{Button, ButtonController};
 use agb::{
     display::object::{Graphics, OamManaged, Tag, TagMap},
     fixnum::Vector2D,

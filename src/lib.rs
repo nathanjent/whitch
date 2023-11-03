@@ -99,6 +99,24 @@ pub fn game_with_level(gba: &mut Gba) {
             }),
         );
 
+        let mut ground = InfiniteScrolledMap::new(
+            bg.background(
+                display::Priority::P1,
+                display::tiled::RegularBackgroundSize::Background32x32,
+                TileFormat::FourBpp,
+            ),
+            Box::new(|pos| {
+                (
+                    &bg_tileset,
+                    TileSetting::from_raw(
+                        *tilemap::GROUND_MAP
+                            .get((pos.x + tilemap::WIDTH * pos.y) as usize)
+                            .unwrap_or(&0),
+                    ),
+                )
+            }),
+        );
+
         let bat_spawns = zip(tilemap::BAT_SPAWNS_X.iter(), tilemap::BAT_SPAWNS_Y.iter());
 
         let start_pos = (8, 8).into();
@@ -106,6 +124,11 @@ pub fn game_with_level(gba: &mut Gba) {
         let mut between_updates = || {
             vblank.wait_for_vblank();
         };
+
+        ground.init(&mut vram, start_pos, &mut between_updates);
+
+        ground.commit(&mut vram);
+        ground.show();
 
         background.init(&mut vram, start_pos, &mut between_updates);
 
@@ -126,6 +149,7 @@ pub fn game_with_level(gba: &mut Gba) {
             }
         };
 
+        ground.clear(&mut vram);
         background.clear(&mut vram);
     }
 }
