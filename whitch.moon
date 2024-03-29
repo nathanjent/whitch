@@ -85,71 +85,62 @@ class Vec
 	angle_cos:(v)=>
 		math.deg math.cos(@*v/(#@*#v))
 
-class Behavior
-	new:(o={})=>
-		@order=o.order or 0
-	update:(game,scene,actor)=>
+PlayerBehavior=(game,scene,actor)->
+	vx=actor.vel.x
+	if actor.vel.x>-actor.vel_max.x and btn 2
+		actor.vel.x-=actor.acc.x
+		actor.flip=1
+		if actor.mode=="idle"
+			actor.mode="walk"
+	if actor.vel.x<actor.vel_max.x and btn 3
+		actor.vel.x+=actor.acc.x
+		actor.flip=0
+		if actor.mode=="idle"
+			actor.mode="walk"
+	if vx==actor.vel.x
+		actor.vel.x=lerp actor.vel.x,0,actor.acc.x
 
-class Player extends Behavior
-	new:(o={})=>
-		super o
-	update:(game,scene,actor)=>
-		vx=actor.vel.x
-		if actor.vel.x>-actor.vel_max.x and btn 2
-			actor.vel.x-=actor.acc.x
-			actor.flip=1
-			if actor.mode=="idle"
-				actor.mode="walk"
-		if actor.vel.x<actor.vel_max.x and btn 3
-			actor.vel.x+=actor.acc.x
-			actor.flip=0
-			if actor.mode=="idle"
-				actor.mode="walk"
-		if vx==actor.vel.x
-			actor.vel.x=lerp actor.vel.x,0,actor.acc.x
+	if scene\hit_wall actor
+		actor.vel.x=0
 
-		if scene\hit_wall actor
-			actor.vel.x=0
-
-		if scene\hit_ground actor
-			actor.vel.y=0
-			if actor.mode=="jump"
-				actor.mode="idle"
-		else
-			actor.vel.y+=actor.acc.y
-
-		if actor.vel.y==0 and btnp 4
-			actor.vel.y=-actor.vel_max.y
-			actor.mode="jump"
-
-		if scene\hit_ceiling actor
-			actor.vel.y=0
-
-		if actor.vel.x==0 and actor.vel.y==0
+	if scene\hit_ground actor
+		actor.vel.y=0
+		if actor.mode=="jump"
 			actor.mode="idle"
+	else
+		actor.vel.y+=actor.acc.y
 
-		actor.pos+=actor.vel
+	if actor.vel.y==0 and btnp 4
+		actor.vel.y=-actor.vel_max.y
+		actor.mode="jump"
 
-		super game,scene,actor
+	if scene\hit_ceiling actor
+		actor.vel.y=0
 
-class Ouch extends Behavior
-	new:(o={})=>
-		super o
-	update:(game,actor)=>
-		if actor.is_player and actor.is_hurt
-			game.camera.shake=true
-			game.shake=2
-			actor.is_hurt=false
+	if actor.vel.x==0 and actor.vel.y==0
+		actor.mode="idle"
+
+	actor.pos+=actor.vel
+
+	game.camera.pos.x=math.min 120,
+		lerp(game.camera.pos.x,120-actor.pos.x,0.05)
+
+OuchBehavior=(game,scene,actor)->
+	if actor.is_player and actor.is_hurt
+		game.camera.shake=2
+		actor.is_hurt=false
+
+PlayerFollowBehavior=(game,scene,map)->
+	map.sx=game.camera.pos.x
+	map.sy=game.camera.pos.y
 
 class Behavioral
 	new:(o={})=>
 		@behaviors=o.behaviors or {}
-		assert all_type @behaviors,Behavior
+		assert all @behaviors,(b)->"function" == type b
 	update:(game,scene)=>
-		table.sort @behaviors,comp("order")
-		for b in *@behaviors
-			b\update game,scene,@
-	draw:(game,scene)=>
+		for behavior in *@behaviors
+			behavior game,scene,@
 
 class Actor extends Behavioral
 	new:(o={})=>
@@ -176,6 +167,8 @@ class Actor extends Behavioral
 		if @debug and DEBUG
 			x,y,w,h=@hitbox!
 			--trace "actor orig:#{@origin} pos:#{@pos}"
+			x=x+game.camera.pos.x
+			y=y+game.camera.pos.y
 			rectb x,y,w,h,11
 			print "x:#{@pos.x} y:#{@pos.y}",x+w,y+h,11,0,1,1
 			print "vx:#{@vel.x} vy:#{@vel.y}",x+w,y+h+7,11,0,1,1
@@ -285,7 +278,8 @@ class Sprite extends AnimValues
 		if not @hide
 			-- center origin
 			spr @id,
-				@pos.x-@w*4,@pos.y-@h*4,
+				@pos.x-@w*4+game.camera.pos.x,
+				@pos.y-@h*4+game.camera.pos.y,
 				@colorkey,
 				@scale,
 				@cur_flip,
@@ -424,14 +418,26 @@ class Scene
 		assert istype e,Actor
 		table.insert @actors,e
 
+class Camera
+	new:(o={})=>
+		@pos=o.pos or Vec o.x or 0,o.y or 0
+		@shake=0
+	draw:=>
+		if @shake > 0
+			d=1
+			poke 0x3FF9,math.random(-d,d)
+			poke 0x3FF9+1,math.random(-d,d)
+			@shake-=1
+			if @shake==0
+				memset 0x3FF9,0,2
+
 class Game
 	new:(o={})=>
 		@scenes=o.scenes or {}
 		assert all_type @scenes,Scene
 		@cur_scene=1
 		@t=0
-		@camera=o.camera or {}
-		@shake=0
+		@camera=o.camera or Camera!
 	update:=>
 		if @game_end
 			return
@@ -442,17 +448,7 @@ class Game
 		if @game_end
 			cls!
 			print "You are dead.",64,84,1,false,2
-		@camera_shake!
-	camera_shake:=>
-		if @camera.shake
-			if @shake>0
-				d=1
-				poke 0x3FF9,math.random(-d,d)
-				poke 0x3FF9+1,math.random(-d,d)
-				@shake-=1
-				if @shake==0
-					memset 0x3FF9,0,2
-					@camera.shake=false
+		@camera\draw!
 
 export BOOT=->
 	fireball=SpriteSet
@@ -481,8 +477,9 @@ export BOOT=->
 		ay:0.2
 		vx_max:1.3
 		vy_max:3.1
-		behaviors:{ Player! }
+		behaviors:{ PlayerBehavior }
 		modes:{}
+		debug:true
 
 	player.modes.idle=Mode
 		sprite:SpriteSet
@@ -616,9 +613,11 @@ export BOOT=->
 				}
 				maps:{
 					Map
+						behaviors:{ PlayerFollowBehavior }
 						colorkey:0
 						z_index:-1
 					Map
+						behaviors:{ PlayerFollowBehavior }
 						colorkey:0
 						z_index:-2
 						y:17
